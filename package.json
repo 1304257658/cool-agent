@@ -1,0 +1,20 @@
+{
+  "name": "easy-agent",
+  "version": "0.1.0",
+  "description": "A terminal-native agentic coding system",
+  "type": "module",
+  "main": "dist/entrypoint/cli.js",
+  "bin": {
+    "cool-agent": "dist/entrypoint/cli.js"
+  },
+  "scripts": {
+    "dev": "tsx src/entrypoint/cli.ts",
+    "build": "tsc",
+    "start": "node dist/entrypoint/cli.js"
+  },
+  "devDependencies": {
+    "@types/node": "^25.9.1",
+    "tsx": "^4.22.3",
+    "typescript": "^6.0.3"
+  }
+}
