@@ -1,14 +1,31 @@
+import Anthropic from '@anthropic-ai/sdk';
+import {
+    getAnthropicClient,
+    DEFAULT_MODEL,
+    DEAFULT_MAX_TOKENS,
+} from './anthropicClient.js';
+
+
 export async function* streamMessage(
     params: StreamRequestParams,
 ): AsyncGenerator<StreamEvent, StreamResult> {
     const client = getAnthropicClient();
-    
-    const stream = client.message.stream({
-        model: params.model ?? DEFAULT_MODEL,
-        max_tokens: params.maxTokens ?? DEAFULT_MAX_TOKENS,
-        message: params.messages,
+    const model = params.model ?? DEFAULT_MODEL;
+    const maxTokens = params.maxTokens ?? DEAFULT_MAX_TOKENS;
+
+    // Build the API request
+    const requestParams: Anthropic.MessageCreateParamsStreaming = {
+        model,
+        max_tokens: maxTokens,
+        messages: params.messages,
         stream: true,
         ...(params.system && { system: params.system }),
+        ...(params.tools && params.tools.length > 0 && { tools: params.tools }),
+    };
+
+    // Initiate the stream
+    const stream = client.messages.stream(requestParams, {
+        signal: params.signal,
     });
 
     const contentBlocks: ContentBlock[] = [];

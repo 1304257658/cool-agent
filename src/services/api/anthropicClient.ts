@@ -1,6 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 
-export const DEFAULT_MODEL = process.env.ANTHROPIC_MODEL || "claude-sonnet-4-20250514";
+export const DEFAULT_MODEL = process.env.ANTHROPIC_MODEL || "sonnet-4.6";
 export const DEAFULT_MAX_TOKENS = 8096;
 
 let clientInstance: Anthropic | null = null;

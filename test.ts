@@ -1,9 +1,9 @@
 import "dotenv/config";
-import { streamMessage } from "../services/api/streaming.js";
+import { streamMessage } from "./src/services/api/streaming.js";
 
 
 const gen = streamMessage({
-    message: [{ role: "user", content: "用一句话解释什么是 Agentic Loop" }],
+    messages: [{ role: "user", content: "解释一下什么是 Agentic Loop" }],
     system: "You are a helpful assistant. Reply in Chinese.",
 });
 
