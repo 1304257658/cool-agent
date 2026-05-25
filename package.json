@@ -14,11 +14,14 @@
   },
   "devDependencies": {
     "@types/node": "^25.9.1",
+    "@types/react": "^19.2.15",
     "tsx": "^4.22.3",
     "typescript": "^6.0.3"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.98.0",
-    "dotenv": "^17.4.2"
+    "dotenv": "^17.4.2",
+    "ink": "^7.0.4",
+    "react": "^19.2.6"
   }
 }

@@ -16,6 +16,8 @@ dist/
 # macOS hidden files
 .DS_Store
 
+# test
+test/
 
 
 
