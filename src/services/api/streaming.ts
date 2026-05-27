@@ -1,9 +1,37 @@
 import Anthropic from '@anthropic-ai/sdk';
+import type { MessageParam } from "@anthropic-ai/sdk/resources/messages.js";
 import {
     getAnthropicClient,
     DEFAULT_MODEL,
     DEAFULT_MAX_TOKENS,
 } from './anthropicClient.js';
+import {
+    TextBlock,
+    ContentBlock,
+    Usage,
+    StreamEvent,
+    AssistantMessage,
+} from '../../types/message.js';
+
+
+// ─── Request Parameters ────────────────────────────────────────────
+
+export interface StreamRequestParams {
+  messages: MessageParam[];
+  model?: string;
+  maxTokens?: number;
+  system?: string;
+  tools?: Anthropic.Tool[];
+  signal?: AbortSignal;
+}
+
+// ─── Streaming Result ──────────────────────────────────────────────
+
+export interface StreamResult {
+  assistantMessage: AssistantMessage;
+  usage: Usage;
+  stopReason: string;
+}
 
 
 export async function* streamMessage(
