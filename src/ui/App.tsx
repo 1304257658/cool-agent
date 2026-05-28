@@ -20,161 +20,12 @@ import {
     StreamEvent,
     AssistantMessage,
 } from '../types/message.js';
-// 工具系统：Tool 接口定义了工具的 name/description/call 等生命周期
-import type { Tool } from '../tools/Tool.js';
-import { toolToApiParam } from '../tools/Tool.js';
-// Anthropic SDK 顶层类型，用于 toolsApiParams 的类型标注
-import type Anthropic from "@anthropic-ai/sdk";
+// 工具系统：工具上下文类型定义
+import type { ToolContext } from "../tools/Tool.js";
+import { getAllTools, findToolByName, getToolsApiParams } from '../tools/index.js';
 
 // Agentic Loop 最大工具调用轮次，防止无限循环
 export const MAX_TOOL_TURNS = 50;
-
-// 内置工具注册表
-// 每个工具实现 Tool 接口，包含名称、描述、JSON Schema 参数声明和 call 执行函数
-// 工具在 Agentic Loop 中被 AI 调用：AI 返回 tool_use → executeTools 执行 → 结果喂回 AI
-const BUILT_IN_TOOLS: Tool[] = [
-  // 读取文件内容
-  {
-    name: "read",
-    description: "Read the contents of a file at the given path",
-    inputSchema: {
-      type: "object",
-      properties: {
-        file_path: { type: "string", description: "Absolute path to the file to read" },
-      },
-      required: ["file_path"],
-    },
-    async call(input) {
-      try {
-        const { readFile } = await import("fs/promises");
-        const content = await readFile(String(input.file_path), "utf-8");
-        return { content };
-      } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        return { content: `Error reading file: ${message}`, isError: true };
-      }
-    },
-    isReadOnly: () => true,
-    isEnabled: () => true,
-  },
-  // 写入文件内容（自动创建父目录）
-  {
-    name: "write",
-    description: "Write content to a file, creating directories if needed",
-    inputSchema: {
-      type: "object",
-      properties: {
-        file_path: { type: "string", description: "Absolute path to the file" },
-        content: { type: "string", description: "Content to write to the file" },
-      },
-      required: ["file_path", "content"],
-    },
-    async call(input) {
-      try {
-        const { writeFile, mkdir } = await import("fs/promises");
-        const { dirname } = await import("path");
-        await mkdir(dirname(String(input.file_path)), { recursive: true });
-        await writeFile(String(input.file_path), String(input.content), "utf-8");
-        return { content: `Successfully wrote ${input.file_path}` };
-      } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        return { content: `Error writing file: ${message}`, isError: true };
-      }
-    },
-    isReadOnly: () => false,
-    isEnabled: () => true,
-  },
-  // 列出目录内容
-  {
-    name: "list_files",
-    description: "List files and directories in a given path",
-    inputSchema: {
-      type: "object",
-      properties: {
-        path: { type: "string", description: "Absolute path to the directory" },
-      },
-      required: ["path"],
-    },
-    async call(input) {
-      try {
-        const { readdir } = await import("fs/promises");
-        const entries = await readdir(String(input.path), { withFileTypes: true });
-        const lines = entries.map((e) => `${e.isDirectory() ? "📁" : "📄"} ${e.name}`);
-        return { content: lines.join("\n") };
-      } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        return { content: `Error listing directory: ${message}`, isError: true };
-      }
-    },
-    isReadOnly: () => true,
-    isEnabled: () => true,
-  },
-  // 执行 shell 命令并返回输出
-  {
-    name: "run_command",
-    description: "Run a shell command and return its output",
-    inputSchema: {
-      type: "object",
-      properties: {
-        command: { type: "string", description: "Shell command to execute" },
-        cwd: { type: "string", description: "Working directory (default: project root)" },
-      },
-      required: ["command"],
-    },
-    async call(input) {
-      try {
-        const { execSync } = await import("child_process");
-        const output = execSync(String(input.command), {
-          cwd: input.cwd ? String(input.cwd) : process.cwd(),
-          encoding: "utf-8",
-          maxBuffer: 10 * 1024 * 1024,
-        });
-        return { content: output || "(command completed with no output)" };
-      } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        return { content: `Error running command: ${message}`, isError: true };
-      }
-    },
-    isReadOnly: () => false,
-    isEnabled: () => true,
-  },
-  // 使用 ripgrep 搜索文件内容
-  {
-    name: "grep_search",
-    description: "Search for a pattern in files using ripgrep",
-    inputSchema: {
-      type: "object",
-      properties: {
-        pattern: { type: "string", description: "Search pattern (regex)" },
-        path: { type: "string", description: "Directory to search in" },
-        glob: { type: "string", description: "Optional glob filter (e.g. *.ts)" },
-      },
-      required: ["pattern"],
-    },
-    async call(input) {
-      try {
-        const { execSync } = await import("child_process");
-        let cmd = `rg "${String(input.pattern).replace(/"/g, '\\"')}"`;
-        if (input.path) cmd += ` "${String(input.path)}"`;
-        if (input.glob) cmd += ` --glob "${String(input.glob)}"`;
-        const output = execSync(cmd, {
-          encoding: "utf-8",
-          maxBuffer: 10 * 1024 * 1024,
-        });
-        return { content: output || "(no matches found)" };
-      } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        return { content: `Error searching: ${message}`, isError: true };
-      }
-    },
-    isReadOnly: () => true,
-    isEnabled: () => true,
-  },
-];
-
-// 将内置工具列表转换为 Anthropic API 接受的 Tool 格式
-// toolToApiParam 负责将 Tool 接口的 inputSchema 映射为 Anthropic 的 input_schema
-const toolsApiParams: Anthropic.Tool[] = BUILT_IN_TOOLS.map(toolToApiParam);
 
 
 // App 组件接收的参数
@@ -206,6 +57,48 @@ function extractAssistantText(msg: MessageParam): string | null {
 
   return texts.length > 0 ? texts.join("") : null;
 }
+
+// 执行 AI 请求的工具调用
+// 遍历 ContentBlock 中的 tool_use 块，在 BUILT_IN_TOOLS 中查找并执行对应工具
+// 收集执行结果为 ToolResultBlock[]，包装成 user 角色的 MessageParam 喂回下一轮对话
+async function executeTools(contentBlocks: ContentBlock[]): Promise<MessageParam> {
+  // 过滤出所有的 tool_use 块
+  const toolUseBlocks = contentBlocks.filter((block) => block.type === "tool_use");
+
+  const results = [];
+  for (const block of toolUseBlocks) {
+    const tool = findToolByName(block.name);
+
+    if (!tool) {
+      results.push({
+        type: "tool_result" as const,
+        tool_use_id: block.id,
+        content: `Unknown tool: ${block.name}`,
+        is_error: true,
+      });
+      continue;
+    }
+
+    const toolContext = {
+      "cwd": "",
+      "env": {},
+    };
+
+    const result = await tool.call(block.input, toolContext);
+
+    const toolResult: { type: "tool_result"; tool_use_id: string; content: string; is_error?: boolean } = {
+      type: "tool_result",
+      tool_use_id: block.id,
+      content: result.content,
+    };
+    if (result.isError) {
+      toolResult.is_error = true;
+    }
+    results.push(toolResult);
+  }
+  return { role: "user", content: results }
+}
+
 
 export function App({ model, system }: AppProps): React.ReactNode {
   // useApp().exit() 用于退出整个 Ink 应用程序
@@ -285,7 +178,7 @@ export function App({ model, system }: AppProps): React.ReactNode {
         messages: [...currentMessages],
         model,
         system,
-        tools: toolsApiParams.length > 0 ? toolsApiParams : undefined,
+        tools: getToolsApiParams().length > 0 ? getToolsApiParams() : undefined,
         signal,
       });
 
@@ -310,58 +203,7 @@ export function App({ model, system }: AppProps): React.ReactNode {
         }
       }
     },
-    [model, system, toolsApiParams],
-  );
-
-  // 执行 AI 请求的工具调用
-  // 遍历 ContentBlock 中的 tool_use 块，在 BUILT_IN_TOOLS 中查找并执行对应工具
-  // 收集执行结果为 ToolResultBlock[]，包装成 user 角色的 MessageParam 喂回下一轮对话
-  const executeTools = useCallback(
-    async (contentBlocks: ContentBlock[], signal?: AbortSignal): Promise<MessageParam> => {
-      const toolResults: ToolResultBlock[] = [];
-
-      for (const block of contentBlocks) {
-        if (block.type !== "tool_use") continue;
-
-        const tool = BUILT_IN_TOOLS.find((t) => t.name === block.name);
-        if (!tool) {
-          toolResults.push({
-            type: "tool_result",
-            tool_use_id: block.id,
-            content: `Unknown tool: ${block.name}`,
-            is_error: true,
-          });
-          continue;
-        }
-
-        setToolCalls((prev) =>
-          prev.map((tc) => (tc.name === block.name ? { ...tc, resultLength: 0 } : tc)),
-        );
-
-        const result = await tool.call(block.input, {
-          cwd: process.cwd(),
-          abortSignal: signal,
-        });
-
-        toolResults.push({
-          type: "tool_result",
-          tool_use_id: block.id,
-          content: result.content,
-          is_error: result.isError,
-        });
-
-        setToolCalls((prev) =>
-          prev.map((tc) =>
-            tc.name === block.name
-              ? { ...tc, resultLength: result.content.length, isError: result.isError }
-              : tc,
-          ),
-        );
-      }
-
-      return { role: "user", content: toolResults } as MessageParam;
-    },
-    [],
+    [model, system, getToolsApiParams],
   );
 
   // 提交用户消息，启动 Agentic Loop
@@ -431,7 +273,7 @@ export function App({ model, system }: AppProps): React.ReactNode {
           if (result.stopReason === "tool_use") {
             const contentBlocks = result.assistantMessage.content;
             if (Array.isArray(contentBlocks)) {
-              const toolResultMsg = await executeTools(contentBlocks, abort.signal);
+              const toolResultMsg = await executeTools(contentBlocks);
               loopMessages = [...loopMessages, toolResultMsg];
               setMessages(loopMessages);
               messagesRef.current = loopMessages;
