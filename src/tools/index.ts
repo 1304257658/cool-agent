@@ -27,7 +27,7 @@ function addLineNumbers(content: string, startLine: number): string {
 const BUILT_IN_TOOLS: Tool[] = [
   // 读取文件内容
   {
-    name: "fileReadTool",
+    name: "read",
     description: "Read the contents of a file at the given path",
     inputSchema: {
       type: "object",

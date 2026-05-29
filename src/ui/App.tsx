@@ -23,6 +23,30 @@ import {
 // 工具系统：工具上下文类型定义
 import type { ToolContext } from "../tools/Tool.js";
 import { getAllTools, findToolByName, getToolsApiParams } from '../tools/index.js';
+import type { AgenticLoopEvent } from '../core/agenticLoop.js';
+import { DebugView } from './components/DebugView.js';
+
+
+
+function markToolCallComplete(
+  toolCalls: ToolCallInfo[],
+  name: string,
+  resultLength: number,
+  isError?: boolean,
+): ToolCallInfo[] {
+  // 遍历工具调用列表，找到匹配名称且尚未完成的工具调用
+  // 更新其 resultLength 和 isError 状态，返回新的工具调用数组
+  return toolCalls.map((toolCall) => 
+    toolCall.name === name
+    // 检查此工具调用是否尚未完成（resultLength 未定义）
+    && toolCall.resultLength === undefined
+    // 如果条件匹配，更新工具调用的 resultLength 和 isError 状态
+    // 否则保持原状态不变
+    ? { ...toolCall, resultLength, isError } : toolCall,
+  );
+}
+
+
 
 // Agentic Loop 最大工具调用轮次，防止无限循环
 export const MAX_TOOL_TURNS = 50;
@@ -188,14 +212,21 @@ export function App({ model, system }: AppProps): React.ReactNode {
         const { value, done } = await generator.next();
         if (done) return value ?? null;
 
-        const event = value as StreamEvent;
+        const event = value as AgenticLoopEvent;
         switch (event.type) {
           case "text":
-            accumulatedText += event.text;
-            setStreamingText(accumulatedText);  // 触发重渲染，终端实时更新
+            setStreamingText((prev) => prev + event.text);  // 触发重渲染，终端实时更新
             break;
           case "tool_use_start":
             setToolCalls((prev) => [...prev, { name: event.name }]);
+            break;
+          // case "permission_request":
+          //   setSpinnerLabel("Requesting permission...");
+          //   setPermissionRequest(event);
+          //   break;
+          case "tool_use_done":
+            setToolCalls((prev) => 
+              markToolCallComplete(prev, event.name, event.result.content.length, event.result.isError));
             break;
           case "error":
             setErrorText(event.error.message);
@@ -320,6 +351,14 @@ export function App({ model, system }: AppProps): React.ReactNode {
             </Box>
           );
         }
+        if (msg.role === "user" && typeof msg.content === "object") {
+          return (
+            <Box key={ `u${i}` } marginTop={1}>
+              <Text color="green" bold>{"❯ "}</Text>
+              <Text>{JSON.stringify(msg.content)}</Text>
+            </Box>
+          );
+        }
         if (msg.role === "assistant") {
           // 从 content blocks 中提取纯文本部分
           const text = extractAssistantText(msg);
@@ -331,6 +370,14 @@ export function App({ model, system }: AppProps): React.ReactNode {
               </Box>
             );
           }
+        }
+        if (msg.role === "assistant" && typeof msg.content === "object") {
+          return (
+            <Box key={ `u${i}` } marginTop={1}>
+              <Text color="green" bold>{"❯ "}</Text>
+              <Text>{JSON.stringify(msg.content)}</Text>
+            </Box>
+          );
         }
         return null;
       })}
@@ -363,6 +410,14 @@ export function App({ model, system }: AppProps): React.ReactNode {
       {lastUsage && !isLoading && (
         <Text dimColor>{"  tokens: "}{lastUsage.input} in / {lastUsage.output} out</Text>
       )}
+      
+      {/* ── 显示调试信息 ── */}
+      <DebugView
+        model={model}
+        system={system}
+        messages={messages}
+        tools={getToolsApiParams()}
+      />
 
       {/* ── 输入行：非加载状态下显示输入框和光标 ── */}
       {!isLoading && (
