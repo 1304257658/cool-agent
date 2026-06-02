@@ -31,7 +31,7 @@ export type AgenticLoopEvent =
   | { type: "turn_complete"; reason: LoopTerminationReason; turnCount: number }
   | { type: "error"; error: Error };
 
-export type 
+
 
 
 async function runTools(contentBlocks: ContentBlock[], toolContext: ToolContext) {

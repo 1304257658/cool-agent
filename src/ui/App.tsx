@@ -110,7 +110,12 @@ async function executeTools(contentBlocks: ContentBlock[]): Promise<MessageParam
 
     const result = await tool.call(block.input, toolContext);
 
-    const toolResult: { type: "tool_result"; tool_use_id: string; content: string; is_error?: boolean } = {
+    const toolResult: {
+      type: "tool_result";
+      tool_use_id: string;
+      content: string;
+      is_error?: boolean
+    } = {
       type: "tool_result",
       tool_use_id: block.id,
       content: result.content,
@@ -291,7 +296,7 @@ export function App({ model, system }: AppProps): React.ReactNode {
           totalIn += result.usage.input_tokens;
           totalOut += result.usage.output_tokens;
 
-          // 追加 assistant message
+          // 追加 assistant message，React 自动重渲染 UI
           const assistantMsg: MessageParam = {
             role: "assistant",
             content: result.assistantMessage.content as any,
