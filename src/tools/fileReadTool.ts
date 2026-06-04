@@ -18,11 +18,11 @@ export const fileReadTool: Tool = {
         offset:    { type: "number", description: "起始行号（1-indexed）" },
         limit:     { type: "number", description: "读取行数" },
       },
-      required: ["file_path"],
+      required: ["file_path", "offset", "limit"],
     },
     async call(rawInput, context): Promise<ToolResult> {
         const file_path = String(rawInput.file_path);
-        const offset = Number(rawInput.offset) || 0;
+        const offset = Number(rawInput.offset) || 1;
         const limit = Number(rawInput.limit) || 100;
 
       try {

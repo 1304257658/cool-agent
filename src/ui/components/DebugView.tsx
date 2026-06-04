@@ -65,12 +65,16 @@ function renderContent(content: MessageParam["content"]): React.ReactNode {
             typeof block.content === "string"
               ? block.content
               : JSON.stringify(block.content);
+          // 将内容按行分割，逐行渲染以保留换行格式
+          const lines = inner.split(/\r?\n/);
           return (
             <Box key={`b${i}`} flexDirection="column">
               <Text color={block.is_error ? "red" : "cyan"}>
                 {`[tool_result]${block.is_error ? " (error)" : ""}  (for: ${block.tool_use_id})`}
               </Text>
-              <Text dimColor>{`  ${inner}`}</Text>
+              {lines.map((line: string, idx: number) => (
+                <Text key={`tr${idx}`} dimColor>{`  ${line}`}</Text>
+              ))}
             </Box>
           );
         }
