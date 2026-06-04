@@ -30,10 +30,15 @@ export const grepSearchTool: Tool = {
           encoding: "utf-8",
           maxBuffer: 10 * 1024 * 1024,
         });
-        return { content: output || "(no matches found)" };
+        return {
+          content: output || "(no matches found)"
+        };
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
-        return { content: `Error searching: ${message}`, isError: true };
+        return {
+          content: `Error searching: ${message}`,
+          isError: true
+        };
       }
     },
     isReadOnly: () => true,

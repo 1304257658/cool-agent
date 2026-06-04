@@ -24,10 +24,15 @@ export const fileWriteTool: Tool = {
         const { dirname } = await import("path");
         await mkdir(dirname(String(input.file_path)), { recursive: true });
         await writeFile(String(input.file_path), String(input.content), "utf-8");
-        return { content: `Successfully wrote ${input.file_path}` };
+        return {
+          content: `Successfully wrote ${input.file_path}`
+        };
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
-        return { content: `Error writing file: ${message}`, isError: true };
+        return {
+          content: `Error writing file: ${message}`,
+          isError: true
+        };
       }
     },
     isReadOnly: () => false,

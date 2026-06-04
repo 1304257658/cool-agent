@@ -27,10 +27,15 @@ export const runCommandTool: Tool = {
           encoding: "utf-8",
           maxBuffer: 10 * 1024 * 1024,
         });
-        return { content: output || "(command completed with no output)" };
+        return {
+          content: output || "(command completed with no output)"
+        };
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
-        return { content: `Error running command: ${message}`, isError: true };
+        return {
+          content: `Error running command: ${message}`,
+          isError: true
+        };
       }
     },
     isReadOnly: () => false,

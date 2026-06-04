@@ -58,33 +58,52 @@ export async function* streamMessage(
 
     const contentBlocks: ContentBlock[] = [];
     let currentToolInputJson = "";
-    const usage: Usage = { input_tokens: 0, output_tokens: 0 };
+    const usage: Usage = {
+        input_tokens: 0,
+        output_tokens: 0
+    };
     let stopReason = "";
 
     for await (const event of stream) {
         switch (event.type) {
             case "message_start":
                 usage.input_tokens = event.message.usage.input_tokens;
-                yield { type: "message_start", messageId: event.message.id };
+                yield {
+                    type: "message_start",
+                    messageId: event.message.id
+                };
                 break;
             
             case "content_block_start":
                 if (event.content_block.type === "text") {
-                    contentBlocks[event.index] = { type: "text", text: "" };
+                    contentBlocks[event.index] = {
+                        type: "text",
+                        text: ""
+                    };
                 } else if (event.content_block.type === "tool_use") {
                     const b = event.content_block;
                     contentBlocks[event.index] = {
-                        type: "tool_use", id: b.id, name: b.name, input: {},
+                        type: "tool_use",
+                        id: b.id,
+                        name: b.name,
+                        input: {},
                     };
                     currentToolInputJson = "";
-                    yield { type: "tool_use_start", id: b.id, name: b.name };
+                    yield {
+                        type: "tool_use_start",
+                        id: b.id,
+                        name: b.name
+                    };
                 }
                 break;
 
             case "content_block_delta":
                 if (event.delta.type === "text_delta") {
                     (contentBlocks[event.index] as TextBlock).text += event.delta.text;
-                    yield { type: "text", text: event.delta.text };
+                    yield { 
+                        type: "text", 
+                        text: event.delta.text 
+                    };
                 } else if (event.delta.type === "input_json_delta") {
                     currentToolInputJson += event.delta.partial_json;
                 }

@@ -41,7 +41,9 @@ export const fileReadTool: Tool = {
         // 4. 加行号（cat -n 格式）
         const numbered = addLineNumbers(selected.join("\n"), startIdx + 1);
 
-        return { content: `${resolved} (${allLines.length} lines)\n${numbered}` };
+        return {
+          content: `${resolved} (${allLines.length} lines)\n${numbered}`
+        };
       }
       catch (err) {
         // Node.js 的文件系统错误有 code 属性（如 ENOENT）

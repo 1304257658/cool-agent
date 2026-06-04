@@ -23,10 +23,15 @@ export const listFilesTool: Tool = {
         const { readdir } = await import("fs/promises");
         const entries = await readdir(String(input.path), { withFileTypes: true });
         const lines = entries.map((e) => `${e.isDirectory() ? "📁" : "📄"} ${e.name}`);
-        return { content: lines.join("\n") };
+        return {
+          content: lines.join("\n")
+        };
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
-        return { content: `Error listing directory: ${message}`, isError: true };
+        return {
+          content: `Error listing directory: ${message}`,
+          isError: true
+        };
       }
     },
     isReadOnly: () => true,

@@ -28,28 +28,6 @@ import { DebugView } from './components/DebugView.js';
 
 
 
-function markToolCallComplete(
-  toolCalls: ToolCallInfo[],
-  name: string,
-  resultLength: number,
-  isError?: boolean,
-): ToolCallInfo[] {
-  // 遍历工具调用列表，找到匹配名称且尚未完成的工具调用
-  // 更新其 resultLength 和 isError 状态，返回新的工具调用数组
-  return toolCalls.map((toolCall) => 
-    toolCall.name === name
-    // 检查此工具调用是否尚未完成（resultLength 未定义）
-    && toolCall.resultLength === undefined
-    // 如果条件匹配，更新工具调用的 resultLength 和 isError 状态
-    // 否则保持原状态不变
-    ? { ...toolCall, resultLength, isError } : toolCall,
-  );
-}
-
-
-
-// Agentic Loop 最大工具调用轮次，防止无限循环
-export const MAX_TOOL_TURNS = 50;
 
 
 // App 组件接收的参数
@@ -245,95 +223,7 @@ export function App({ model, system }: AppProps): React.ReactNode {
   // 提交用户消息，启动 Agentic Loop
   // 流程：发送消息 → AI 回复 → 若需要调工具则执行 → 结果喂回 AI → 重复
   // 处理 slash 命令（/exit, /clear, /history）、AbortError、token 用量统计
-  const handleSubmit = useCallback(
-    async (text: string) => {
-      if (!text.trim()) return;
-      const trimmed = text.trim();
-
-      // Slash commands 本地拦截
-      if (trimmed === "/exit" || trimmed === "/quit") { exit(); return; }
-      if (trimmed === "/clear") {
-        setMessages([]);
-        messagesRef.current = [];
-        setInfoMessage("Conversation cleared.");
-        return;
-      }
-      if (trimmed === "/history") {
-        setInfoMessage(`${messagesRef.current.length} messages in conversation.`);
-        return;
-      }
-
-      // 重置 UI 状态
-      setStreamingText("");
-      setToolCalls([]);
-      setErrorText(null);
-      setInfoMessage(null);
-      setIsLoading(true);
-      setSpinnerLabel("Thinking");
-
-      // 追加 user message，创建本轮消息数组
-      const userMsg: MessageParam = { role: "user", content: trimmed };
-      let loopMessages = [...messagesRef.current, userMsg];
-      setMessages(loopMessages);
-      messagesRef.current = loopMessages;
-
-      const abort = new AbortController();
-      abortRef.current = abort;
-
-      let totalIn = 0;
-      let totalOut = 0;
-
-      try {
-        let turnCount = 0;
-        // Agentic Loop：AI 调用工具 → 执行 → 结果喂回去 → 循环
-        while (turnCount < MAX_TOOL_TURNS) {
-          turnCount++;
-          setStreamingText("");
-
-          const result = await runStreamingTurn(loopMessages, abort.signal);
-          if (!result || abort.signal.aborted) break;
-
-          totalIn += result.usage.input_tokens;
-          totalOut += result.usage.output_tokens;
-
-          // 追加 assistant message，React 自动重渲染 UI
-          const assistantMsg: MessageParam = {
-            role: "assistant",
-            content: result.assistantMessage.content as any,
-          };
-          loopMessages = [...loopMessages, assistantMsg];
-          setMessages(loopMessages);
-          messagesRef.current = loopMessages;
-
-          // 如果 AI 想调工具 → 执行工具 → 追加 tool_result → 继续循环
-          if (result.stopReason === "tool_use") {
-            const contentBlocks = result.assistantMessage.content;
-            if (Array.isArray(contentBlocks)) {
-              const toolResultMsg = await executeTools(contentBlocks);
-              loopMessages = [...loopMessages, toolResultMsg];
-              setMessages(loopMessages);
-              messagesRef.current = loopMessages;
-              setSpinnerLabel("Thinking");
-              continue;
-            }
-          }
-          break;  // stop_reason 不是 tool_use → 对话结束
-        }
-
-        setLastUsage({ input: totalIn, output: totalOut });
-      } catch (err: unknown) {
-        if (err instanceof Error && err.name === "AbortError") {
-          setInfoMessage("Interrupted.");
-        } else {
-          setErrorText(err instanceof Error ? err.message : String(err));
-        }
-      } finally {
-        setIsLoading(false);
-        abortRef.current = null;
-      }
-    },
-    [exit, runStreamingTurn, executeTools],
-  );
+  const handleSubmit = xxx
     
   return (
     // flexDirection="column" 使子元素从上到下垂直排列

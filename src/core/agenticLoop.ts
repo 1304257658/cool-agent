@@ -1,3 +1,7 @@
+// React 是必须导入的，因为 JSX 编译后依赖 React
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+// Ink 终端 UI 框架核心组件
+import { Box, Text, useApp, useInput } from 'ink';
 import type Anthropic from "@anthropic-ai/sdk";
 import type { MessageParam } from "@anthropic-ai/sdk/resources/messages.js";
 import { streamMessage } from "../services/api/streaming.js";
@@ -7,7 +11,6 @@ import type { ContentBlock, ToolUseBlock, Usage } from "../types/message.js";
 
 // Agentic Loop 最大工具调用轮次，防止无限循环
 export const MAX_TOOL_TURNS = 50;
-
 
 type LoopState = {
   messages: MessageParam[];
@@ -31,19 +34,133 @@ export type AgenticLoopEvent =
   | { type: "turn_complete"; reason: LoopTerminationReason; turnCount: number }
   | { type: "error"; error: Error };
 
-
-
-
-async function runTools(contentBlocks: ContentBlock[], toolContext: ToolContext) {
-  // 返回 tool_result message
-
+export interface AgenticLoopResult {
+  state: LoopState;
+  usage: Usage;
+  reason: LoopTerminationReason;
 }
 
-export async function* query(params: { messages: MessageParam[] }) {
-  // yield 流式事件
-  // return 最终状态
+export interface QueryParams {
+  messages: MessageParam[];
+  systemPrompt?: string;
+  tools?: Anthropic.Tool[];
+  model: string;
+  maxTokens?: number;
+  abortSignal?: AbortSignal;
+  toolContext: ToolContext;
+  maxTurns?: number;
+  // permissionMode?: PermissionMode;
+  // permissionSettings?: PermissionSettings;
+  // sessionPermissionRules?: PermissionRuleSet;
+  // onPermissionRequest?: (request: PermissionRequest) => Promise<PermissionDecision>;
+}
 
-  let state = {
+export interface RunToolsOptions {
+  // permissionMode?: PermissionMode;
+  // permissionSettings?: PermissionSettings;
+  // sessionPermissionRules?: PermissionRuleSet;
+  // onPermissionRequest?: (request: PermissionRequest) => Promise<PermissionDecision>;
+}
+
+export interface ToolExecutionResult {
+  toolUseId: string;
+  toolName: string;
+  result: ToolResult;
+}
+
+
+async function runTools(
+  contentBlocks: ContentBlock[], 
+  context: ToolContext,
+  options: RunToolsOptions = {},
+): Promise<{
+  toolResultsMessage: MessageParam;
+  executions: ToolExecutionResult[];
+  // permissionRequests: PermissionRequest[];
+}> {
+  const toolUseBlocks = contentBlocks.filter(
+    (block): block is ToolUseBlock => block.type === "tool_use",
+  );
+
+  const toolResults: Array<{
+    type: "tool_result";
+    tool_use_id: string;
+    content: string;
+    is_error: boolean;
+  }> = [];
+  const executions: ToolExecutionResult[] = [];
+  
+  for (const block of toolUseBlocks) {
+    const tool = findToolByName(block.name);
+    if (!tool) {
+      const result: ToolResult = {
+        content: `Tool ${block.name} not found`,
+        isError: true,
+      }
+      toolResults.push({
+        type: "tool_result",
+        tool_use_id: block.id,
+        content: result.content,
+        is_error: true,
+      });
+      executions.push({
+        toolUseId: block.id,
+        toolName: block.name,
+        result: result,
+      })
+      continue;
+    };
+
+    try {
+      const result = await tool.call(block.input as Record<string, any>, context);
+      toolResults.push({
+        type: "tool_result",
+        tool_use_id: block.id,
+        content: result.content,
+        is_error: result.isError ? true : false,
+      });
+      executions.push({
+        toolUseId: block.id,
+        toolName: block.name,
+        result: result,
+      })
+    } catch (error: unknown) {
+      const result: ToolResult = {
+        content: `Error: ${error instanceof Error ? error.message : String(error)}`,
+        isError: true,
+      }
+      toolResults.push({
+        type: "tool_result",
+        tool_use_id: block.id,
+        content: result.content,
+        is_error: true,
+      })
+      executions.push({
+        toolUseId: block.id,
+        toolName: block.name,
+        result: result,
+      })
+    }
+  }
+
+  // 返回 tool_result message
+  return {
+    toolResultsMessage: {
+      role: "user",
+      content: toolResults,
+    },
+    executions: executions,
+  };
+}
+
+export async function* query(
+  params: QueryParams,
+// yield 流式事件
+// return 最终状态
+): AsyncGenerator<AgenticLoopEvent, AgenticLoopResult> {
+  // max_turns
+  const maxTurns = params.maxTurns ?? MAX_TOOL_TURNS;
+  let state: LoopState = {
     messages: [...params.messages],
     turnCount: 0,
     aborted: false,
@@ -53,57 +170,177 @@ export async function* query(params: { messages: MessageParam[] }) {
     output_tokens: 0
   };
 
-  while (state.turnCount < MAX_TOOL_TURNS) {
+  while (state.turnCount < maxTurns) {
     // 1. 检查中断
     if (params.abortSignal?.aborted) {
-      state.aborted = true;
-      break;
-    }
-
-    // 2. 调用 streamMessage()
-    // 3. 流式 yield text/tool_use_start
-    // 4. 收集完整 assistant message
-    // 5. 追加到 state.messages
-    // 6. 如果 stop_reason !== 'tool_use' -> completed
-    // 7. 否则 runTools()
-    // 8. yield tool_use_done / tool_result_message
-    // 9. 继续下一轮
-    state.turnCount++;
-    setStreamingText("");
-
-    const result = await runStreamingTurn(state.messages, state.aborted);
-    if (!result || state.aborted) break;
-
-    totalUsage.input_tokens += result.usage.input_tokens;
-    totalUsage.output_tokens += result.usage.output_tokens;
-
-    // 追加 assistant message
-    const assistantMsg: MessageParam = {
-      role: "assistant",
-      content: result.assistantMessage.content as any,
-    };
-    loopMessages = [...loopMessages, assistantMsg];
-    setMessages(loopMessages);
-    messagesRef.current = loopMessages;
-
-    // 如果 AI 想调工具 → 执行工具 → 追加 tool_result → 继续循环
-    if (result.stopReason === "tool_use") {
-      const contentBlocks = result.assistantMessage.content;
-      if (Array.isArray(contentBlocks)) {
-        const toolResultMsg = await executeTools(contentBlocks);
-        state.messages = [...state.messages, toolResultMsg];
-        setMessages(state.messages);
-        messagesRef.current = state.messages;
-        setSpinnerLabel("Thinking");
-        continue;
+      const abortedState = {
+        ...state,
+        aborted: true,
+      }
+      yield {
+        type: "turn_complete",
+        reason: "aborted",
+        turnCount: abortedState.turnCount,
+      }
+      return {
+        state: abortedState,
+        usage: totalUsage,
+        reason: "aborted",
       }
     }
-    break;  // stop_reason 不是 tool_use → 对话结束
+
+    const nextTurnCount = state.turnCount + 1;
+    let assistantContent: ContentBlock[] = [];
+    let stopReason = ""
+
+    // 2. 调用 streamMessage()
+    const stream = streamMessage({
+      messages: [...state.messages],
+      model: params.model,
+      maxTokens: params.maxTokens,
+      system: params.systemPrompt,
+      tools: params.tools,
+      signal: params.abortSignal,
+    });
+
+    while (true) {
+      // 3. 流式 yield text/tool_use_start
+      // 4. 收集完整 assistant message
+      // 5. 追加到 state.messages
+      // 6. 如果 stop_reason !== 'tool_use' -> completed
+      // 7. 否则 runTools()
+      // 8. yield tool_use_done / tool_result_message
+      // 9. 继续下一轮
+
+      const { value, done } = await stream.next();
+      if (done) {
+        const streamResult = value;
+        if (!streamResult) {
+          yield {
+            type: "turn_complete",
+            reason: "model_error",
+            turnCount: nextTurnCount,
+          }
+          return {
+            state: {
+              ...state,
+              turnCount: nextTurnCount,
+            },
+            usage: totalUsage,
+            reason: "model_error",
+          }
+        }
+
+        totalUsage.input_tokens += streamResult.usage.input_tokens;
+        totalUsage.output_tokens += streamResult.usage.output_tokens;
+        assistantContent = streamResult.assistantMessage.content as ContentBlock[];
+        stopReason = streamResult.stopReason;
+        break;
+      }
+      
+      switch (value.type) {
+        case "text":
+          yield value;
+          break;
+        case "tool_use_start":
+          yield value;
+          break;
+        // case "tool_use_input":
+        //   break;
+        // case "message_start":
+        //   break;
+        // case "message_done":
+        //   break;
+        case "error":
+          yield {
+            type: "error",
+            error: value.error,
+          };
+          yield {
+            type: "turn_complete",
+            reason: "model_error",
+            turnCount: nextTurnCount,
+          };
+          return {
+            state: {
+              ...state,
+              turnCount: nextTurnCount,
+            },
+            usage: totalUsage,
+            reason: "model_error",
+          };
+      }
+    }
+    const assistantMessage: MessageParam = {
+      role: "assistant",
+      content: assistantContent as any,
+    };
+    const messageWithAssistant = [...state.messages, assistantMessage];
+    state = {
+      messages: messageWithAssistant,
+      turnCount: nextTurnCount,
+      aborted: false,
+    };
+    yield {
+      type: "assistant_message",
+      message: assistantMessage,
+    }
+
+    if (stopReason !== "tool_use") {
+      yield {
+        type: "turn_complete",
+        reason: "completed",
+        turnCount: state.turnCount,
+      }
+      return {
+        state: state,
+        usage: totalUsage,
+        reason: "completed",
+      }
+    }
+
+    const { toolResultsMessage, executions } = await runTools(
+      assistantContent,
+      {
+        ...params.toolContext,
+        abortSignal: params.abortSignal,
+      },
+      {
+        
+      },
+    );
+
+    for (const execution of executions) {
+      yield {
+        type: "tool_use_done",
+        id: execution.toolUseId,
+        name: execution.toolName,
+        result: execution.result,
+      };
+    }
+
+    state = {
+      messages: [...state.messages, toolResultsMessage],
+      turnCount: nextTurnCount,
+      aborted: false,
+    }
+    yield {
+      type: "tool_result_message",
+      message: toolResultsMessage,
+    }
   }
 
-  // max_turns
+  yield {
+    type: "turn_complete",
+    reason: "max_turns",
+    turnCount: state.turnCount,
+  }
 
-  
+  return {
+    state: state,
+    usage: totalUsage,
+    reason: "max_turns",
+  }
 }
 
 
