@@ -1,0 +1,2099 @@
+{
+  type: 'message_start',
+  message: {
+    id: 'msg_a8cd0f51437208123c488291',
+    type: 'message',
+    role: 'assistant',
+    model: 'qwen3-vl:4b',
+    content: [],
+    usage: { input_tokens: 24, output_tokens: 0 }
+  }
+}
+{
+  type: 'content_block_start',
+  index: 0,
+  content_block: { type: 'thinking', thinking: '' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '嗯' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '，' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '用户' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '让我' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '用' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '一句话' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '解释' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '什么是' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: 'Ag' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: 'entic' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: ' Loop' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '。' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '首先' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '，' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '我' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '需要' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '确认' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: 'Ag' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: 'entic' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: ' Loop' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '的具体' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '定义' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '。' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '可能' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '用户' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '接触' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '过' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '一些' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: 'AI' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '相关的' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '术语' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '，' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '比如' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: 'AG' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: 'I' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '或者' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: 'Agent' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '，' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '但' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: 'Ag' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: 'entic' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: ' Loop' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '可能' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '是一个' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '更' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '专业的' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '概念' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '。' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '\n\n先' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '回想' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '一下' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '，' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: 'Ag' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: 'entic' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: ' Loop' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '应该' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '是指' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '代理' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '系统' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '在' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '自主' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '决策' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '和' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '执行' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '任务' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '时' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '的' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '循环' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '过程' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '。' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '可能' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '涉及' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '感知' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '环境' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '、' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '制定' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '策略' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '、' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '执行' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '行动' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '、' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '反馈' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '结果' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '，' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '然后' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '再次' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '循环' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '。' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '这个' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '过程' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '需要' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '连续' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '不断' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '，' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '直到' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '任务' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '完成' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '。' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '\n\n然后' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '，' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '我' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '需要' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '验证' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '这个' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '理解' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '是否' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '正确' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '。' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '比如' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '，' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: 'Ag' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: 'entic' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: ' Loop' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '可能' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '指的是' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '像' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '“' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: 'Agent' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '-' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: 'Action' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '-' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: 'Feedback' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '”' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '这样的' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '闭环' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '，' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '其中' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: 'Agent' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '生成' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '动作' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '，' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '执行' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '后' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '得到' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '反馈' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '，' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '再' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '调整' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '策略' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '。' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '或者' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '，' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '可能' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '更' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '偏向' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '于' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '自主' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '学习' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '和' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '迭代' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '优化' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '的过程' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '。' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '\n\n接下来' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '，' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '用户' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '要求' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '用' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '一句话' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '解释' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '，' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '所以' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '必须' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '简洁' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '。' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '可能' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '需要' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '包含' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '关键' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '要素' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '：' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '自主' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '决策' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '、' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '环境' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '交互' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '、' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '持续' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '优化' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '。' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '例如' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '：“' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: 'Ag' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: 'entic' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: ' Loop' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '是指' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '智能' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '体' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '通过' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '感知' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '环境' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '、' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '执行' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '决策' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '、' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '获取' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '反馈' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '并' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '持续' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '优化' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '策略' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '的' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '自主' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '循环' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '过程' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '。”' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '\n\n但' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '要' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '检查' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '是否' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '准确' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '。' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '比如' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '，' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '有没有' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '可能' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '遗漏' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '了' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '某些' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '部分' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '？' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '比如' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '，' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '是否' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '需要' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '提到' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '“' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '自我' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '迭代' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '”' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '或者' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '“' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '动态' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '适应' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '”' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '？' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '\n\n另外' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '，' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '用户' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '可能' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '混淆' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '了' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: 'Ag' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: 'entic' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: ' Loop' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '和其他' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '术语' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '，' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '比如' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: 'M' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: 'LO' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: 'ps' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '或者' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '强化' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '学习' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '中的' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '循环' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '。' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '需要' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '确认' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: 'Ag' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: 'entic' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: ' Loop' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '是否' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '是一个' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '特定' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '术语' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '，' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '还是' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '泛' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '指' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '。' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '\n\n可能' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: 'Ag' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: 'entic' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: ' Loop' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '是' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '某个' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '特定' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '模型' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '或' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '框架' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '中的' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '术语' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '，' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '比如' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '在' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '多' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '智能' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '体' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '系统' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '中' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '。' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '但' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '根据' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '常见的' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '解释' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '，' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: 'Ag' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: 'entic' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: ' Loop' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '应该' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '是指' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '代理' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '（' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: 'Agent' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '）' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '在' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '自主' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '任务' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '执行' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '中的' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '循环' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '机制' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '。' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '\n\n最后' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '，' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '整合' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '成' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '一句话' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '：' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '智能' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '体' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '通过' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '自主' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '感知' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '环境' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '、' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '执行' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '动作' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '、' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '接收' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '反馈' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '并' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '动态' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '调整' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '策略' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '，' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '形成' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '持续' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '优化' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '的' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '闭环' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '系统' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '，' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '即' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: 'Ag' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: 'entic' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: ' Loop' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '。' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '\n\n再' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '检查' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '是否' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '准确' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '和' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '简洁' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '，' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '避免' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '冗' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '长' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '。' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '可能' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '需要' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '调整' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '用' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '词' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '，' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '比如' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '“' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '动态' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '调整' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '”' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '换成' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '“' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '自我' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '迭代' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '”' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '更' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '准确' }
+}
+{
+  type: 'content_block_delta',
+  index: 0,
+  delta: { type: 'thinking_delta', thinking: '？' }
+}
+{ type: 'content_block_stop', index: 0 }
+{
+  type: 'content_block_start',
+  index: 1,
+  content_block: { type: 'text', text: '' }
+}
+{
+  type: 'content_block_delta',
+  index: 1,
+  delta: { type: 'text_delta', text: 'Ag' }
+}
+{
+  type: 'content_block_delta',
+  index: 1,
+  delta: { type: 'text_delta', text: 'entic' }
+}
+{
+  type: 'content_block_delta',
+  index: 1,
+  delta: { type: 'text_delta', text: ' Loop' }
+}
+{
+  type: 'content_block_delta',
+  index: 1,
+  delta: { type: 'text_delta', text: '是指' }
+}
+{
+  type: 'content_block_delta',
+  index: 1,
+  delta: { type: 'text_delta', text: '智能' }
+}
+{
+  type: 'content_block_delta',
+  index: 1,
+  delta: { type: 'text_delta', text: '体' }
+}
+{
+  type: 'content_block_delta',
+  index: 1,
+  delta: { type: 'text_delta', text: '通过' }
+}
+{
+  type: 'content_block_delta',
+  index: 1,
+  delta: { type: 'text_delta', text: '感知' }
+}
+{
+  type: 'content_block_delta',
+  index: 1,
+  delta: { type: 'text_delta', text: '环境' }
+}
+{
+  type: 'content_block_delta',
+  index: 1,
+  delta: { type: 'text_delta', text: '、' }
+}
+{
+  type: 'content_block_delta',
+  index: 1,
+  delta: { type: 'text_delta', text: '自主' }
+}
+{
+  type: 'content_block_delta',
+  index: 1,
+  delta: { type: 'text_delta', text: '决策' }
+}
+{
+  type: 'content_block_delta',
+  index: 1,
+  delta: { type: 'text_delta', text: '执行' }
+}
+{
+  type: 'content_block_delta',
+  index: 1,
+  delta: { type: 'text_delta', text: '动作' }
+}
+{
+  type: 'content_block_delta',
+  index: 1,
+  delta: { type: 'text_delta', text: '、' }
+}
+{
+  type: 'content_block_delta',
+  index: 1,
+  delta: { type: 'text_delta', text: '接收' }
+}
+{
+  type: 'content_block_delta',
+  index: 1,
+  delta: { type: 'text_delta', text: '反馈' }
+}
+{
+  type: 'content_block_delta',
+  index: 1,
+  delta: { type: 'text_delta', text: '并' }
+}
+{
+  type: 'content_block_delta',
+  index: 1,
+  delta: { type: 'text_delta', text: '动态' }
+}
+{
+  type: 'content_block_delta',
+  index: 1,
+  delta: { type: 'text_delta', text: '优化' }
+}
+{
+  type: 'content_block_delta',
+  index: 1,
+  delta: { type: 'text_delta', text: '策略' }
+}
+{
+  type: 'content_block_delta',
+  index: 1,
+  delta: { type: 'text_delta', text: '的' }
+}
+{
+  type: 'content_block_delta',
+  index: 1,
+  delta: { type: 'text_delta', text: '自我' }
+}
+{
+  type: 'content_block_delta',
+  index: 1,
+  delta: { type: 'text_delta', text: '迭代' }
+}
+{
+  type: 'content_block_delta',
+  index: 1,
+  delta: { type: 'text_delta', text: '闭环' }
+}
+{
+  type: 'content_block_delta',
+  index: 1,
+  delta: { type: 'text_delta', text: '过程' }
+}
+{
+  type: 'content_block_delta',
+  index: 1,
+  delta: { type: 'text_delta', text: '，' }
+}
+{
+  type: 'content_block_delta',
+  index: 1,
+  delta: { type: 'text_delta', text: '实现' }
+}
+{
+  type: 'content_block_delta',
+  index: 1,
+  delta: { type: 'text_delta', text: '持续' }
+}
+{
+  type: 'content_block_delta',
+  index: 1,
+  delta: { type: 'text_delta', text: '适应' }
+}
+{
+  type: 'content_block_delta',
+  index: 1,
+  delta: { type: 'text_delta', text: '与' }
+}
+{
+  type: 'content_block_delta',
+  index: 1,
+  delta: { type: 'text_delta', text: '任务' }
+}
+{
+  type: 'content_block_delta',
+  index: 1,
+  delta: { type: 'text_delta', text: '完成' }
+}
+{
+  type: 'content_block_delta',
+  index: 1,
+  delta: { type: 'text_delta', text: '。' }
+}
+{ type: 'content_block_stop', index: 1 }
+{
+  type: 'message_delta',
+  delta: { stop_reason: 'end_turn' },
+  usage: { input_tokens: 33, output_tokens: 417 }
+}
+{ type: 'message_stop' }

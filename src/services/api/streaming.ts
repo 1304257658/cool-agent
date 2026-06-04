@@ -65,6 +65,9 @@ export async function* streamMessage(
     let stopReason = "";
 
     for await (const event of stream) {
+        // 调试输出
+        // console.log(event);
+
         switch (event.type) {
             case "message_start":
                 usage.input_tokens = event.message.usage.input_tokens;
@@ -124,7 +127,10 @@ export async function* streamMessage(
                 break;
 
             case "message_stop":
-                yield { type: "message_done", stopReason, usage };
+                yield {
+                    type: "message_done",
+                    stopReason, usage
+                };
                 break;
         }
     }

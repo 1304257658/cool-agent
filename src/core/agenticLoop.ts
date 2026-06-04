@@ -68,7 +68,7 @@ export interface ToolExecutionResult {
   result: ToolResult;
 }
 
-
+// 执行 AI 请求的工具调用
 async function runTools(
   contentBlocks: ContentBlock[], 
   context: ToolContext,
@@ -78,6 +78,7 @@ async function runTools(
   executions: ToolExecutionResult[];
   // permissionRequests: PermissionRequest[];
 }> {
+  // 遍历 ContentBlock 中的 tool_use 块，在 BUILT_IN_TOOLS 中查找并执行对应工具
   const toolUseBlocks = contentBlocks.filter(
     (block): block is ToolUseBlock => block.type === "tool_use",
   );
@@ -143,7 +144,7 @@ async function runTools(
     }
   }
 
-  // 返回 tool_result message
+  // 收集执行结果为 toolResults[]，包装成 user 角色的 MessageParam 喂回下一轮对话
   return {
     toolResultsMessage: {
       role: "user",
@@ -206,11 +207,6 @@ export async function* query(
     while (true) {
       // 3. 流式 yield text/tool_use_start
       // 4. 收集完整 assistant message
-      // 5. 追加到 state.messages
-      // 6. 如果 stop_reason !== 'tool_use' -> completed
-      // 7. 否则 runTools()
-      // 8. yield tool_use_done / tool_result_message
-      // 9. 继续下一轮
 
       const { value, done } = await stream.next();
       if (done) {
@@ -271,10 +267,14 @@ export async function* query(
           };
       }
     }
+
     const assistantMessage: MessageParam = {
       role: "assistant",
       content: assistantContent as any,
     };
+
+    
+    // 5. 追加到 state.messages
     const messageWithAssistant = [...state.messages, assistantMessage];
     state = {
       messages: messageWithAssistant,
@@ -286,6 +286,7 @@ export async function* query(
       message: assistantMessage,
     }
 
+    // 6. 如果 stop_reason !== 'tool_use' -> completed
     if (stopReason !== "tool_use") {
       yield {
         type: "turn_complete",
@@ -299,6 +300,7 @@ export async function* query(
       }
     }
 
+    // 7. 否则 runTools()
     const { toolResultsMessage, executions } = await runTools(
       assistantContent,
       {
@@ -310,6 +312,7 @@ export async function* query(
       },
     );
 
+    // 8. yield tool_use_done / tool_result_message
     for (const execution of executions) {
       yield {
         type: "tool_use_done",
@@ -319,6 +322,7 @@ export async function* query(
       };
     }
 
+    // 9. 继续下一轮
     state = {
       messages: [...state.messages, toolResultsMessage],
       turnCount: nextTurnCount,
@@ -335,7 +339,6 @@ export async function* query(
     reason: "max_turns",
     turnCount: state.turnCount,
   }
-
   return {
     state: state,
     usage: totalUsage,

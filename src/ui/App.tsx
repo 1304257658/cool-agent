@@ -60,51 +60,8 @@ function extractAssistantText(msg: MessageParam): string | null {
   return texts.length > 0 ? texts.join("") : null;
 }
 
-// 执行 AI 请求的工具调用
-// 遍历 ContentBlock 中的 tool_use 块，在 BUILT_IN_TOOLS 中查找并执行对应工具
-// 收集执行结果为 ToolResultBlock[]，包装成 user 角色的 MessageParam 喂回下一轮对话
-async function executeTools(contentBlocks: ContentBlock[]): Promise<MessageParam> {
-  // 过滤出所有的 tool_use 块
-  const toolUseBlocks = contentBlocks.filter((block) => block.type === "tool_use");
 
-  const results = [];
-  for (const block of toolUseBlocks) {
-    const tool = findToolByName(block.name);
 
-    if (!tool) {
-      results.push({
-        type: "tool_result" as const,
-        tool_use_id: block.id,
-        content: `Unknown tool: ${block.name}`,
-        is_error: true,
-      });
-      continue;
-    }
-
-    const toolContext = {
-      "cwd": "",
-      "env": {},
-    };
-
-    const result = await tool.call(block.input, toolContext);
-
-    const toolResult: {
-      type: "tool_result";
-      tool_use_id: string;
-      content: string;
-      is_error?: boolean
-    } = {
-      type: "tool_result",
-      tool_use_id: block.id,
-      content: result.content,
-    };
-    if (result.isError) {
-      toolResult.is_error = true;
-    }
-    results.push(toolResult);
-  }
-  return { role: "user", content: results }
-}
 
 
 export function App({ model, system }: AppProps): React.ReactNode {
@@ -129,101 +86,7 @@ export function App({ model, system }: AppProps): React.ReactNode {
   const messagesRef = useRef<MessageParam[]>([]);
   messagesRef.current = messages;
 
-  // 注册 Ink 键盘事件监听
-  // 所有用户键盘输入都会经过此处理函数
-  useInput((input, key) => {
-    // Ctrl+C：中断当前请求
-    if (key.ctrl && input === "c") {
-      if (abortRef.current) {
-        abortRef.current.abort();
-        abortRef.current = null;
-        setIsLoading(false);
-        setStreamingText("");
-        setInfoMessage("Interrupted.");
-      }
-      return;
-    }
 
-    // Ctrl+D：退出程序
-    if (key.ctrl && input === "d") {
-      exit();
-      return;
-    }
-
-    // 正在加载时忽略普通输入
-    if (isLoading) return;
-
-    // 回车：提交消息
-    if (key.return) {
-      const text = inputValue;
-      setInputValue("");
-      void handleSubmit(text);
-      return;
-    }
-
-    // 退格
-    if (key.backspace || key.delete) {
-      setInputValue((prev) => prev.slice(0, -1));
-      return;
-    }
-
-    // 普通字符追加到输入框
-    if (input && !key.ctrl && !key.meta) {
-      setInputValue((prev) => prev + input);
-    }
-  });
-
-  // 执行一轮流式消息请求
-  // 调用 streamMessage 与 AI API 通信，实时处理 text/tool_use_start/error 事件
-  // 返回 StreamResult（包含 assistant 回复内容、停止原因、用量统计）或 null（出错时）
-  const runStreamingTurn = useCallback(
-    async (
-      currentMessages: MessageParam[],
-      signal?: AbortSignal,
-    ): Promise<StreamResult | null> => {
-      const generator = streamMessage({
-        messages: [...currentMessages],
-        model,
-        system,
-        tools: getToolsApiParams().length > 0 ? getToolsApiParams() : undefined,
-        signal,
-      });
-
-      let accumulatedText = "";
-
-      while (true) {
-        const { value, done } = await generator.next();
-        if (done) return value ?? null;
-
-        const event = value as AgenticLoopEvent;
-        switch (event.type) {
-          case "text":
-            setStreamingText((prev) => prev + event.text);  // 触发重渲染，终端实时更新
-            break;
-          case "tool_use_start":
-            setToolCalls((prev) => [...prev, { name: event.name }]);
-            break;
-          // case "permission_request":
-          //   setSpinnerLabel("Requesting permission...");
-          //   setPermissionRequest(event);
-          //   break;
-          case "tool_use_done":
-            setToolCalls((prev) => 
-              markToolCallComplete(prev, event.name, event.result.content.length, event.result.isError));
-            break;
-          case "error":
-            setErrorText(event.error.message);
-            return null;
-        }
-      }
-    },
-    [model, system, getToolsApiParams],
-  );
-
-  // 提交用户消息，启动 Agentic Loop
-  // 流程：发送消息 → AI 回复 → 若需要调工具则执行 → 结果喂回 AI → 重复
-  // 处理 slash 命令（/exit, /clear, /history）、AbortError、token 用量统计
-  const handleSubmit = xxx
     
   return (
     // flexDirection="column" 使子元素从上到下垂直排列

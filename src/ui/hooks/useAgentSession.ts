@@ -85,6 +85,9 @@ export function useAgentSession({
     const messagesRef = useRef<MessageParam[]>([]);
     messagesRef.current = messages;
 
+    // 提交用户消息，启动 Agentic Loop
+    // 流程：发送消息 → AI 回复 → 若需要调工具则执行 → 结果喂回 AI → 重复
+    // 处理 slash 命令（/exit, /clear, /history）、AbortError、token 用量统计
     const submit = useCallback(
         async (text: string): Promise<SubmitResult> => {
             if (!text.trim()) {
