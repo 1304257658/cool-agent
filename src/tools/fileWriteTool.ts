@@ -1,5 +1,8 @@
-import path from 'path';
-import fs from 'fs/promises';
+import { dirname } from 'path';
+import {
+  writeFile,
+  mkdir
+} from 'fs/promises';
 
 // 工具系统：Tool 接口定义了工具的 name/description/call 等生命周期
 import type { Tool, ToolResult } from './Tool.js';
@@ -20,8 +23,6 @@ export const fileWriteTool: Tool = {
     },
     async call(input) {
       try {
-        const { writeFile, mkdir } = await import("fs/promises");
-        const { dirname } = await import("path");
         await mkdir(dirname(String(input.file_path)), { recursive: true });
         await writeFile(String(input.file_path), String(input.content), "utf-8");
         return {

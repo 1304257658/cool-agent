@@ -7,7 +7,11 @@ import { Spinner } from './../components/Spinner.js';
 // Anthropic Messages API 的类型定义
 import type { MessageParam } from "@anthropic-ai/sdk/resources/messages.js";
 // 本地类型定义：工具调用信息和 token 用量汇总
-import type { ToolCallInfo, UsageSummary } from './../types.js';
+import type {
+    ToolCallInfo,
+    UsageSummary,
+    SystemNotice
+} from './../types.js';
 // 流式消息 API
 import { streamMessage } from '../../services/api/streaming.js';
 import type { StreamResult } from '../../services/api/streaming.js';
@@ -72,7 +76,7 @@ export function useAgentSession({
     const [toolCalls, setToolCalls] = useState<ToolCallInfo[]>([]);  // 当前工具调用列表
     const [lastUsage, setLastUsage] = useState<UsageSummary | null>(null);  // 上一轮的 token 用量
     const [totalUsage, setTotalUsage] = useState<UsageSummary | null>(null);  // 累计 token 用量
-    // const [systemNotice, setSystemNotice] = useState<SystemNotice | null>(null);  // 系统通知
+    const [systemNotice, setSystemNotice] = useState<SystemNotice | null>(null);  // 系统通知
     const [infoMessage, setInfoMessage] = useState<String | null>(null);  // 提示信息（如 /clear 的结果）
     const [errorText, setErrorText] = useState<String | null>(null);  // 错误信息
 
@@ -131,23 +135,144 @@ export function useAgentSession({
             setIsLoading(true);
             setSpinnerLabel("Thinking");
 
-            try {
-                const run = await query(trimmed);
+            if (!trimmed) {
+                return { handled: false };
             }
 
-            // 追加 user message，创建本轮消息数组
-            const userMsg: MessageParam = { role: "user", content: trimmed };
-            let loopMessages = [...messagesRef.current, userMsg];
-            setMessages(loopMessages);
-            messagesRef.current = loopMessages;
+            // if (trimmed.startsWith("/")) {
+            //     return yield* this.handleCommand(trimmed);
+            // }
 
-            const abort = new AbortController();
-            abortRef.current = abort;
+            const userMessage: MessageParam = { role: "user", content: trimmed };
+            setMessages([...messages, userMessage]);
 
-            let totalIn = 0;
-            let totalOut = 0;
-            
+            const abortController = new AbortController();
+            abortRef.current = abortController;
+
+            try {
+                const run = query({
+                    messages: [...messagesRef.current],
+                    // systemPrompt,
+                    // tools,
+                    model: currentModel,
+                    // abortSignal: abortController.signal,
+                    toolContext: {
+                        cwd: process.cwd(),
+                        abortSignal: abortController.signal,
+                    },
+                    // permissionMode: this.permissionMode,
+                    // permissionSettings: this.permissionSettings,
+                    // sessionPermissionRules: this.sessionPermissionRules,
+                    // onPermissionRequest: this.onPermissionRequest,
+                });
+
+                while (true) {
+                    const { value, done } = await run.next();
+                    if (done) {
+                        break;
+                    }
+                    // export type AgenticLoopEvent =
+                    //   | { type: "text"; text: string }
+                    //   | { type: "tool_use_start"; id: string; name: string }
+                    // //   | { type: "permission_request"; request: PermissionRequest }
+                    //   | { type: "tool_use_done"; id: string; name: string; result: ToolResult }
+                    //   | { type: "assistant_message"; message: MessageParam }
+                    //   | { type: "tool_result_message"; message: MessageParam }
+                    //   | { type: "turn_complete"; reason: LoopTerminationReason; turnCount: number }
+                    //   | { type: "error"; error: Error };
+
+                    switch (value.type) {
+                        case "text":
+                            break;
+                        case "tool_use_start":
+                            setToolCalls([...toolCalls, value]);
+                            break;
+                        // case "permission_request":
+                        //     break;
+                        case "tool_use_done":
+                            break;
+                        case "assistant_message":
+                            break;
+                        case "tool_result_message":
+                            break;
+                        // case "command": 
+                        //     break;
+                        // case "model_changed":
+                        //     break;
+                        // case "session_cleared":
+                        //     break;
+                        case "turn_complete":
+                            break;
+                        case "error":
+                            setErrorText(value.error.message);
+                            return {
+                                handled: true
+                            };
+                        default:
+                            break;
+                    }
+                }
+
+            } catch (error: unknown) {
+                if (error instanceof Error && error.name === "AbortError") {
+                    setSystemNotice({
+                        tone: "info",
+                        title: "Interrupted",
+                        body: "Use /exit, /quit, /bye, or Ctrl+D to exit."
+                    });
+                } else {
+                    setSystemNotice({
+                        tone: "error",
+                        title: "Unhandled error",
+                        body: error instanceof Error ? error.message : String(error),
+                    })
+                }
+            } finally {
+                setIsLoading(false);
+            }
+
+            return {
+                handled: true
+            }
+        }, [onExit]);
+    
+    const interrupt = useCallback(() => {
+        if (!abortRef.current?.abort()) {
+            setSystemNotice({
+                tone: "info",
+                title: "Nothing to interrupt",
+                body: "Use /exit, /quit, /bye, or Ctrl+D to exit."
+            });
+            return true;
+        }
+
+        setIsLoading(false);
+        setStreamingText("");
+        setSystemNotice({
+                tone: "info",
+                title: "Interrupted",
+                body: "Use /exit, /quit, /bye, or Ctrl+D to exit."
+        });
+        return true;
+    }, []);
+    
+    return {
+        state: {
+            messages,
+            isLoading,
+            spinnerLabel,
+            streamingText,
+            toolCalls,
+            lastUsage,
+            totalUsage,
+            systemNotice,
+            // permissionPromptState,
+            currentModel,
         },
-        [onExit]
-    );
+        actions: {
+            submit,
+            interrupt,
+            // resolvePermission,
+        }
+    }
 }
