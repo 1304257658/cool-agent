@@ -1,8 +1,7 @@
 // React 是必须导入的，因为 JSX 编译后依赖 React
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-// Ink 终端 UI 框架核心组件
-import { Box, Text, useApp, useInput } from 'ink';
 import type Anthropic from "@anthropic-ai/sdk";
+
 import type { MessageParam } from "@anthropic-ai/sdk/resources/messages.js";
 import { streamMessage } from "../services/api/streaming.js";
 import { findToolByName } from "../tools/index.js";
@@ -10,7 +9,7 @@ import type { ToolContext, ToolResult } from "../tools/Tool.js";
 import type { ContentBlock, ToolUseBlock, Usage } from "../types/message.js";
 
 // Agentic Loop 最大工具调用轮次，防止无限循环
-export const MAX_TOOL_TURNS = 50;
+export const MAX_TOOL_TURNS = Number(process.env.MAX_TOOL_TURNS) || 50;
 
 type LoopState = {
   messages: MessageParam[];
@@ -25,14 +24,39 @@ export type LoopTerminationReason =
   | "max_turns";
 
 export type AgenticLoopEvent =
-  | { type: "text"; text: string }
-  | { type: "tool_use_start"; id: string; name: string }
+  | {
+    type: "text";
+    text: string;
+  }
+  | {
+    type: "tool_use_start";
+    id: string;
+    name: string;
+  }
 //   | { type: "permission_request"; request: PermissionRequest }
-  | { type: "tool_use_done"; id: string; name: string; result: ToolResult }
-  | { type: "assistant_message"; message: MessageParam }
-  | { type: "tool_result_message"; message: MessageParam }
-  | { type: "turn_complete"; reason: LoopTerminationReason; turnCount: number }
-  | { type: "error"; error: Error };
+  | {
+    type: "tool_use_done";
+    id: string;
+    name: string;
+    result: ToolResult;
+  }
+  | {
+    type: "assistant_message";
+    message: MessageParam;
+  }
+  | {
+    type: "tool_result_message";
+    message: MessageParam;
+  }
+  | {
+    type: "turn_complete";
+    reason: LoopTerminationReason;
+    turnCount: number;
+  }
+  | {
+    type: "error";
+    error: Error;
+  };
 
 export interface AgenticLoopResult {
   state: LoopState;
@@ -273,7 +297,6 @@ export async function* query(
       content: assistantContent as any,
     };
 
-    
     // 5. 追加到 state.messages
     const messageWithAssistant = [...state.messages, assistantMessage];
     state = {

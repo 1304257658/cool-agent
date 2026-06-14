@@ -82,7 +82,7 @@ export function usePromptInput({
     }
   });
 
-  const CommandSuggestion = useMemo(() => {
+  const CommandSuggestions = useMemo(() => {
     if (!inputValue.startsWith("/")) {
         return [];
     };
@@ -94,6 +94,6 @@ export function usePromptInput({
   return {
     inputValue,
     setInputValue,
-    CommandSuggestion,
+    CommandSuggestions,
   }
 }

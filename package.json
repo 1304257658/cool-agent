@@ -1,6 +1,6 @@
 {
-  "name": "easy-agent",
-  "version": "0.1.0",
+  "name": "cool-agent",
+  "version": "0.1.1",
   "description": "A terminal-native agentic coding system",
   "type": "module",
   "main": "dist/entrypoint/cli.js",

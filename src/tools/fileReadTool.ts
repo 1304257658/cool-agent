@@ -12,7 +12,7 @@ export const fileReadTool: Tool = {
     name: "read",
     description: "Read the contents of a file at the given path",
     inputSchema: {
-      type: "object",
+      type: "object" as const,
       properties: {
         file_path: { type: "string", description: "文件路径" },
         offset:    { type: "number", description: "起始行号（1-indexed）" },

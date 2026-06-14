@@ -1,36 +1,16 @@
 // React 是必须导入的，因为 JSX 编译后依赖 React
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-// Ink 终端 UI 框架核心组件
-import { Box, Text, useApp, useInput } from 'ink';
-// 自定义加载动画组件
-import { Spinner } from './../components/Spinner.js';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 // Anthropic Messages API 的类型定义
 import type { MessageParam } from "@anthropic-ai/sdk/resources/messages.js";
+
 // 本地类型定义：工具调用信息和 token 用量汇总
 import type {
     ToolCallInfo,
     UsageSummary,
-    SystemNotice
+    SystemNotice,
 } from './../types.js';
-// 流式消息 API
-import { streamMessage } from '../../services/api/streaming.js';
-import type { StreamResult } from '../../services/api/streaming.js';
-// 消息相关类型定义
-import {
-    TextBlock,
-    ContentBlock,
-    ToolResultBlock,
-    Usage,
-    StreamEvent,
-    AssistantMessage,
-} from '../../types/message.js';
-// 工具系统：工具上下文类型定义
 import type { ToolContext } from "../../tools/Tool.js";
-import { getAllTools, findToolByName, getToolsApiParams } from '../../tools/index.js';
-import type { AgenticLoopEvent } from '../../core/agenticLoop.js';
-import { DebugView } from './../components/DebugView.js';
-import { query } from '../../core/agenticLoop.js';
-
+import { QueryEngine } from '../../core/queryEngine.js';
 
 interface UseAgentSessionOptions {
   model: string;
@@ -60,6 +40,66 @@ function markToolCallComplete(
   );
 }
 
+
+function buildCommandNotice(
+    message: string,
+    kind: "info" | "error",
+): SystemNotice {
+    if (message.startsWith("Commands:")) {
+        return {
+            tone: "info",
+            title: "Available commands",
+            body: [
+                "/help  Show available commands",
+                "/clear  Clear conversation history",
+                "/cost  Show session token usage",
+                "/model [name|default]  Inspect or override the session model",
+                "/history  Show message count",
+                "/exit | /quit | /bye  Exit session",
+            ].join("\n"),
+        }
+    }
+
+    if (message.startsWith("Session usage")) {
+        return {
+            tone: kind,
+            title: "Session usage",
+            body: message,
+        };
+    }
+
+    if (message.startsWith("Model status") || message.startsWith("Model updated")) {
+        return {
+        tone: kind,
+        title: message.startsWith("Model status") ? "Model status" : "Model updated",
+        body: message,
+        };
+    }
+
+    if (message.startsWith("Unknown command:")) {
+        return {
+        tone: "error",
+        title: "Unknown command",
+        body: message,
+        };
+    }
+
+    if (message === "Conversation cleared.") {
+        return {
+        tone: "info",
+        title: "Conversation reset",
+        body: message,
+        };
+    }
+
+    return {
+        tone: kind,
+        title: kind === "error" ? "Command error" : "System message",
+        body: message,
+    }
+}
+
+
 export function useAgentSession({
     model,
     onExit,
@@ -67,7 +107,6 @@ export function useAgentSession({
     
     // 对话数据
     const [messages, setMessages] = useState<MessageParam[]>([]);  // 完整的消息历史
-    const [inputValue, setInputValue] = useState("");  // 当前输入框文本
 
     // UI 状态
     const [isLoading, setIsLoading] = useState(false);  // 是否正在请求 API
@@ -77,17 +116,56 @@ export function useAgentSession({
     const [lastUsage, setLastUsage] = useState<UsageSummary | null>(null);  // 上一轮的 token 用量
     const [totalUsage, setTotalUsage] = useState<UsageSummary | null>(null);  // 累计 token 用量
     const [systemNotice, setSystemNotice] = useState<SystemNotice | null>(null);  // 系统通知
-    const [infoMessage, setInfoMessage] = useState<String | null>(null);  // 提示信息（如 /clear 的结果）
-    const [errorText, setErrorText] = useState<String | null>(null);  // 错误信息
-
 
     const [currentModel, setCurrentModel] = useState(model);
 
+    const engineRef = useRef<QueryEngine | null>(null);
+
+    const toolContext = useMemo<ToolContext>(() => ({
+        cwd: process.cwd(),
+    }), []);
 
     // 中断控制（不触发重渲染，用 useRef 保持可变引用）
     const abortRef = useRef<AbortController | null>(null);
     const messagesRef = useRef<MessageParam[]>([]);
     messagesRef.current = messages;
+
+    useEffect(() => {
+        engineRef.current = new QueryEngine({
+            model: model,
+            toolContext: toolContext,
+        });
+        setCurrentModel(model);
+    }, [model, toolContext]);
+
+    const interrupt = useCallback(() => {
+        if (!abortRef.current?.abort()) {
+            setSystemNotice({
+                tone: "info",
+                title: "Nothing to interrupt",
+                body: "Use /exit, /quit, /bye, or Ctrl+D to exit."
+            });
+            return true;
+        }
+
+        if (!engineRef.current?.interrupt()) {
+            setSystemNotice({
+                tone: "info",
+                title: "Nothing to interrupt",
+                body: "Use /exit, /quit, /bye, or Ctrl+D to exit."
+            });
+            return true;
+        }
+
+        setIsLoading(false);
+        setStreamingText("");
+        setSystemNotice({
+            tone: "info",
+            title: "Interrupted",
+            body: "Use /exit, /quit, /bye, or Ctrl+D to exit."
+        });
+        return true;
+    }, []);
 
     // 提交用户消息，启动 Agentic Loop
     // 流程：发送消息 → AI 回复 → 若需要调工具则执行 → 结果喂回 AI → 重复
@@ -108,19 +186,14 @@ export function useAgentSession({
                     handled: true
                 };
             }
-            if (trimmed === "/clear") {
-                setMessages([]);
-                messagesRef.current = [];
-                setInfoMessage("Conversation cleared.");
-                return {
-                    handled: true
-                };
-            }
-            if (trimmed === "/history") {
-                setInfoMessage(`${messagesRef.current.length} messages in conversation.`);
-                return {
-                    handled: true
-                };
+
+            if (!engineRef.current) {
+                setSystemNotice({
+                    tone: "error",
+                    title: "QueryEngine is not ready",
+                    body: "Please wait for initialization to finish.",
+                });
+                return { handled: true };
             }
 
             const isSlashCommand = trimmed.startsWith("/");
@@ -128,11 +201,11 @@ export function useAgentSession({
             // 重置 UI 状态
             setStreamingText("");
             setToolCalls([]);
-            // setSystemNotice(null);
+            setSystemNotice(null);
             if (!isSlashCommand) {
                 setLastUsage(null);
             }
-            setIsLoading(true);
+            setIsLoading(!isSlashCommand);
             setSpinnerLabel("Thinking");
 
             if (!trimmed) {
@@ -150,25 +223,18 @@ export function useAgentSession({
             abortRef.current = abortController;
 
             try {
-                const run = query({
-                    messages: [...messagesRef.current],
-                    // systemPrompt,
-                    // tools,
-                    model: currentModel,
-                    // abortSignal: abortController.signal,
-                    toolContext: {
-                        cwd: process.cwd(),
-                        abortSignal: abortController.signal,
-                    },
-                    // permissionMode: this.permissionMode,
-                    // permissionSettings: this.permissionSettings,
-                    // sessionPermissionRules: this.sessionPermissionRules,
-                    // onPermissionRequest: this.onPermissionRequest,
-                });
+                const run = engineRef.current.submitMessage(trimmed);
 
                 while (true) {
                     const { value, done } = await run.next();
                     if (done) {
+                        if (value.reason === "aborted") {
+                            setSystemNotice({
+                                tone: "info",
+                                title: "Interrupted",
+                                body: "Use /exit, /quit, /bye, or Ctrl+D to exit."
+                            })
+                        }
                         break;
                     }
                     // export type AgenticLoopEvent =
@@ -183,31 +249,70 @@ export function useAgentSession({
 
                     switch (value.type) {
                         case "text":
+                            setStreamingText((prev) => prev + value.text);
                             break;
                         case "tool_use_start":
-                            setToolCalls([...toolCalls, value]);
+                            setToolCalls((prev) => [...prev, {
+                                name: value.name
+                            }]);
                             break;
                         // case "permission_request":
                         //     break;
                         case "tool_use_done":
+                            setToolCalls((prev) => markToolCallComplete(
+                                    prev,
+                                    value.name,
+                                    value.result.content.length,
+                                    value.result.isError
+                                ),
+                            );
                             break;
                         case "assistant_message":
+                            setStreamingText("");
                             break;
                         case "tool_result_message":
+                            setSpinnerLabel("Thinking");
                             break;
-                        // case "command": 
-                        //     break;
-                        // case "model_changed":
-                        //     break;
-                        // case "session_cleared":
-                        //     break;
+                        case "messages_updated":
+                            setMessages(value.messages);
+                            break;
+                        case "usage_updated":
+                            setLastUsage({
+                                input: value.turnUsage.input_tokens,
+                                output: value.turnUsage.output_tokens,
+                            })
+                            break;
+                        case "command":
+                            setSystemNotice(buildCommandNotice(
+                                value.message,
+                                value.kind,
+                            ));
+                            break;
+                        case "model_changed":
+                            setCurrentModel(value.model);
+                            break;
+                        case "session_cleared":
+                            setMessages([]);
+                            setStreamingText("");
+                            setToolCalls([]);
+                            setLastUsage(null);
+                            break;
                         case "turn_complete":
+                            if (value.reason === "max_turns") {
+                                setSystemNotice({
+                                    tone: "error",
+                                    title: "Turn complete",
+                                    body: `Reached maximun tool turns (${value.turnCount}).`
+                                })
+                            }
                             break;
                         case "error":
-                            setErrorText(value.error.message);
-                            return {
-                                handled: true
-                            };
+                            setSystemNotice({
+                                tone: "error",
+                                title: "Agent error",
+                                body: value.error.message
+                            });
+                            break;
                         default:
                             break;
                     }
@@ -235,26 +340,6 @@ export function useAgentSession({
                 handled: true
             }
         }, [onExit]);
-    
-    const interrupt = useCallback(() => {
-        if (!abortRef.current?.abort()) {
-            setSystemNotice({
-                tone: "info",
-                title: "Nothing to interrupt",
-                body: "Use /exit, /quit, /bye, or Ctrl+D to exit."
-            });
-            return true;
-        }
-
-        setIsLoading(false);
-        setStreamingText("");
-        setSystemNotice({
-                tone: "info",
-                title: "Interrupted",
-                body: "Use /exit, /quit, /bye, or Ctrl+D to exit."
-        });
-        return true;
-    }, []);
     
     return {
         state: {

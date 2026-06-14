@@ -10,6 +10,8 @@ import { runCommandTool } from './runCommandTool.js';
 import { grepSearchTool } from './grepSearchTool.js';
 
 
+// 为文本内容添加行号
+// 用于调试和显示代码时，行号可以方便定位错误
 export function addLineNumbers(content: string, startLine: number): string {
   const lines = content.split("\n");
   const padWidth = String(startLine - 1 + lines.length).length;
@@ -21,6 +23,9 @@ export function addLineNumbers(content: string, startLine: number): string {
     })
     .join("\n");
 }
+
+
+
 
 // 内置工具注册表
 // 每个工具实现 Tool 接口，包含名称、描述、JSON Schema 参数声明和 call 执行函数

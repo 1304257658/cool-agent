@@ -2,7 +2,7 @@
 import "dotenv/config";
 
 
-const VERSION = "0.1.0";
+const VERSION = "0.1.1";
 
 async function main(): Promise<void> {
     if (process.argv.includes("--version") || process.argv.includes("-v")) {
@@ -22,10 +22,10 @@ async function main(): Promise<void> {
     const React = await import("react");
     const { render } = await import("ink");
     const { App } = await import("../ui/App.js");
-    const { DEFAULT_MODEL } = await import("../services/api/anthropicClient.js");
+    const { DEFAULT_MODEL, SYSTEM_PROMPT } = await import("../services/api/anthropicClient.js");
 
     const resolvedModel = model ?? DEFAULT_MODEL;
-    const system = "You are a helpful AI coding assistant. Be concise and direct.";
+    const system = SYSTEM_PROMPT;
 
     const { waitUntilExit } = render(
         React.createElement(App, { model: resolvedModel, system }),

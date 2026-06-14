@@ -43,7 +43,7 @@ export async function* streamMessage(
 
     // Build the API request
     const requestParams: Anthropic.MessageCreateParamsStreaming = {
-        model,
+        model: model,
         max_tokens: maxTokens,
         messages: params.messages,
         stream: true,

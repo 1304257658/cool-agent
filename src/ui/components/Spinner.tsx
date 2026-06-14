@@ -1,6 +1,6 @@
 // React 是必须导入的，因为 JSX 编译后依赖 React
 import React, { useState, useEffect } from 'react';
-import { render, Text } from 'ink';
+import { Text } from 'ink';
 
 // 加载动画的字符帧数组，每个字符代表一帧
 const FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
@@ -50,6 +50,3 @@ export function Spinner({ label = "Thinking" }: SpinnerProps): React.ReactNode {
         </Text>
     );
 }
-
-// render - Ink 的渲染函数，将 React 组件渲染到终端
-render(<Spinner />);
