@@ -14,18 +14,18 @@ export function resolveSafePath(filePath: string, cwd: string): string {
 
 // 确保路径在工作目录内
 export function ensureInsideCwd(filePath: string, cwd: string): void {
-  const normalizedCwd = path.resolve(cwd);
-  const relative = path.relative(normalizedCwd, filePath);
+  const relative = path.relative(cwd, filePath);
   if (relative === "" || relative === ".") {
     return;
   }
-  if (!relative.startsWith("..") || path.isAbsolute(relative)) {
+  if (relative.startsWith("..") || path.isAbsolute(relative)) {
     throw new Error(`Path ${filePath} is not inside the workspace directory ${cwd}`);
   }
 }
 
 
 export function resolveWorkspacePath(filePath: string, cwd: string): string {
+  cwd = path.resolve(expandHome(cwd));
   const resolvedPath = resolveSafePath(filePath, cwd);
   ensureInsideCwd(resolvedPath, cwd);
   return resolvedPath;

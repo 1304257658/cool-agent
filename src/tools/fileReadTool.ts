@@ -1,62 +1,118 @@
-import path from 'path';
 import fs from 'fs/promises';
 
 // 工具系统：Tool 接口定义了工具的 name/description/call 等生命周期
-import type { Tool, ToolResult } from './Tool.js';
+import type {
+  Tool,
+  ToolResult,
+  ToolContext
+} from './Tool.js';
 
-import { addLineNumbers } from '../tools/index.js';
+import { addLineNumbers } from './index.js';
+import { resolveWorkspacePath } from './pathUtils.js';
 
+
+interface FileReadInput {
+    file_path: string;
+    offset?: number;
+    limit?: number;
+}
 
 // 读取文件内容
 export const fileReadTool: Tool = {
-    name: "read",
-    description: "Read the contents of a file at the given path",
+    name: "Read",
+    description: 
+      "Read the contents of a file at the specified path. " +
+      "Use offset and limit to read spoecific line ranges for large files. " +
+      "Output includes line numbers in cat -n format. ",
     inputSchema: {
       type: "object" as const,
       properties: {
-        file_path: { type: "string", description: "文件路径" },
-        offset:    { type: "number", description: "起始行号（1-indexed）" },
-        limit:     { type: "number", description: "读取行数" },
+        file_path: {
+          type: "string",
+          description: "The absolute or relative path to the file to read."
+        },
+        offset: {
+          type: "number",
+          description: "The 1-indexed line number to start reading from (default: 1)."
+        },
+        limit: {
+          type: "number",
+          description: "The number of lines to read. If not provided, reads the entire file."
+        },
       },
-      required: ["file_path", "offset", "limit"],
+      required: ["file_path"],
     },
-    async call(rawInput, context): Promise<ToolResult> {
-        const file_path = String(rawInput.file_path);
-        const offset = Number(rawInput.offset) || 1;
-        const limit = Number(rawInput.limit) || 100;
-
-      try {
-        // 1. 路径解析：相对路径 → 绝对路径
-        const resolved = path.resolve(context.cwd, file_path);
-
-        // 2. 读文件
-        const raw = await fs.readFile(resolved, "utf-8");
-        const allLines = raw.split("\n");
-
-        // 3. 切片
-        const startIdx = offset - 1;
-        const endIdx = limit ? startIdx + limit : allLines.length;
-        const selected = allLines.slice(startIdx, endIdx);
-
-        // 4. 加行号（cat -n 格式）
-        const numbered = addLineNumbers(selected.join("\n"), startIdx + 1);
-
-        return {
-          content: `${resolved} (${allLines.length} lines)\n${numbered}`
-        };
-      }
-      catch (err) {
-        // Node.js 的文件系统错误有 code 属性（如 ENOENT）
-        if (err instanceof Error && (err as NodeJS.ErrnoException).code === "ENOENT") {
+    async call(rawInput: Record<string, unknown>, context: ToolContext): Promise<ToolResult> {
+        const input = rawInput as unknown as FileReadInput;
+        if (!input.file_path) {
           return {
-            content: `Error: File not found: ${file_path}`, 
+            content: "Error: file_path is required",
             isError: true
           };
         }
-        // 其他错误
-        const message = err instanceof Error ? err.message : String(err);
+
+        let resolvedPath: string;
+        try {
+          resolvedPath = resolveWorkspacePath(input.file_path, context.cwd);
+        }
+        catch (error: unknown) {
+          return {
+            content: error instanceof Error 
+            ? `Error: ${error.message}` 
+            : `Error: ${String(error)}`,
+            isError: true
+          };
+        }
+
+        const offset = Number(input.offset) || 1;
+        const limit = Number(input.limit);
+
+      try {
+        const stat = await fs.stat(resolvedPath);
+        if (stat.isDirectory()) {
+          const entries = await fs.readdir(resolvedPath);
+          return {
+            content: `Directory listing for ${input.file_path}:\n${entries.join("\n")}`,
+          };
+        };
+
+        // 1. 读文件
+        const raw = await fs.readFile(resolvedPath, "utf-8");
+        const allLines = raw.split("\n");
+        
+        // 2. 切片
+        const startIdx = offset - 1;
+        const endIdx = limit ? startIdx + limit : allLines.length;
+        const selectedLines = allLines.slice(startIdx, endIdx);
+
+        // 3. 加行号（cat -n 格式）
+        const numbered = addLineNumbers(selectedLines.join("\n"), startIdx + 1);
+
+        // 4. 生成读取的文件范围信息
+        const numLines = selectedLines.length;
+        const rangeInfo = startIdx > 0 || endIdx < allLines.length
+          ? `(lines ${startIdx + 1}-${startIdx + numLines} of ${allLines.length})` 
+          : `(${allLines.length} lines)`;
+        
         return {
-          content: `Error reading file: ${message}`,
+          content: `${resolvedPath} ${rangeInfo}\n${numbered}`
+        };
+      } catch (error: unknown) {
+        // Node.js 的文件系统错误有 code 属性（如 ENOENT）
+        const err = error as NodeJS.ErrnoException;
+        if (err && err.code === "ENOENT") {
+          return {
+            content: `Error: File not found: ${input.file_path}`, 
+            isError: true
+          };
+        } else if (err && err.code === "EACCES") {
+          return {
+            content: `Error: Permission denied: ${input.file_path}`, 
+            isError: true
+          };
+        }
+        return {
+          content: `Error reading file: ${err.message}`,
           isError: true
         };
       }

@@ -6,8 +6,8 @@ import { toolToApiParam } from '../tools/Tool.js';
 import { fileReadTool } from './fileReadTool.js';
 import { fileWriteTool } from './fileWriteTool.js';
 import { listFilesTool } from './listFilesTool.js';
-import { runCommandTool } from './runCommandTool.js';
-import { grepSearchTool } from './grepSearchTool.js';
+import { runCommandTool } from './bashTool.js';
+import { grepSearchTool } from './grepTool.js';
 
 
 // 为文本内容添加行号
