@@ -58,8 +58,8 @@ export const bashTool: Tool = {
   inputSchema: {
     type: "object" as const,
     properties: {
-      command: { type: "string", description: "Shell command to execute" },
-      timeout: { type: "number", description: "Timeout in milliseconds (default 120000)" },
+      command: { type: "string", description: "Shell command to execute." },
+      timeout: { type: "number", description: "Timeout in milliseconds (default 120000)." },
     },
     required: ["command"],
   },

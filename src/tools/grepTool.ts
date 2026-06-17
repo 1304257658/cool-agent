@@ -26,9 +26,9 @@ export const grepTool: Tool = {
   inputSchema: {
     type: "object" as const,
     properties: {
-      pattern: { type: "string", description: "Regex pattern to search for" },
-      path: { type: "string", description: "Directory or file path to search within" },
-      include: { type: "string", description: "Optional glob filter, e.g. *.ts" },
+      pattern: { type: "string", description: "Regex pattern to search for." },
+      path: { type: "string", description: "Directory or file path to search within." },
+      include: { type: "string", description: "Optional glob filter, e.g. *.ts." },
     },
     required: ["pattern"],
   },

@@ -25,15 +25,15 @@ export const globTool: Tool = {
   inputSchema: {
     type: "object" as const,
     properties: {
-      pattern: { type: "string", description: "Glob pattern to match, e.g. **/*.ts" },
-      path: { type: "string", description: "Base directory to search from" },
+      pattern: { type: "string", description: "Glob pattern to match, e.g. **/*.ts." },
+      path: { type: "string", description: "Base directory to search from." },
     },
     required: ["pattern"],
   },
   async call(rawInput: Record<string, unknown>, context: ToolContext): Promise<ToolResult> {
     const input = rawInput as unknown as GlobInput;
     if (!input.pattern) {
-      return { content: "Error: pattern is required", isError: true };
+      return { content: "Error: pattern is required.", isError: true };
     }
 
     let basePath: string;
