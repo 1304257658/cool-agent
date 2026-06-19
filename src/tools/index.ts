@@ -5,9 +5,11 @@ import type { Tool } from '../tools/Tool.js';
 import { toolToApiParam } from '../tools/Tool.js';
 import { fileReadTool } from './fileReadTool.js';
 import { fileWriteTool } from './fileWriteTool.js';
+import { fileEditTool } from "./fileEditTool.js";
 import { listFilesTool } from './listFilesTool.js';
-import { runCommandTool } from './bashTool.js';
-import { grepSearchTool } from './grepTool.js';
+import { bashTool } from './bashTool.js';
+import { grepTool } from './grepTool.js';
+import { globTool } from "./globTool.js";
 
 
 // 为文本内容添加行号
@@ -33,9 +35,11 @@ export function addLineNumbers(content: string, startLine: number): string {
 const BUILT_IN_TOOLS: Tool[] = [
   fileReadTool,
   fileWriteTool,
+  fileEditTool,
   listFilesTool,
-  runCommandTool,
-  grepSearchTool,
+  bashTool,
+  grepTool,
+  globTool,
 ];
 
 // 获取所有启用的工具
