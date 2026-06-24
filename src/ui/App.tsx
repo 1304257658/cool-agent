@@ -22,7 +22,6 @@ import { DebugView } from './components/DebugView.js';
 // App 组件接收的参数
 interface AppProps {
   model: string;  // 使用的 AI 模型名称（如 claude-sonnet-4-20250514）
-  system: string;  // system prompt 指令文本
   // permissionMode?: PermissionMode;  // 预留：权限确认模式（未来功能）
 }
 
@@ -53,7 +52,7 @@ function extractAssistantText(msg: MessageParam): string | null {
 
 
 
-export function App({ model, system }: AppProps): React.ReactNode {
+export function App({ model }: AppProps): React.ReactNode {
   // useApp().exit() 用于退出整个 Ink 应用程序
   const { exit } = useApp();
 
@@ -103,7 +102,6 @@ export function App({ model, system }: AppProps): React.ReactNode {
       {/* ── 显示调试信息 ── */}
       <DebugView
         model={model}
-        system={system}
         messages={state.messages}
         tools={getToolsApiParams()}
       />

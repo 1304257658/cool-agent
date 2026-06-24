@@ -4,6 +4,7 @@ import React from 'react';
 import { Box, Text } from 'ink';
 // Anthropic Messages API 的类型定义
 import type { MessageParam } from "@anthropic-ai/sdk/resources/messages.js";
+import { buildSystemPrompt, renderSystemPrompt } from "../../context/systemPrompt.js";
 
 // ─────────────────────────────────────────────────────────────────────
 // DebugView：调试渲染块
@@ -19,7 +20,6 @@ import type { MessageParam } from "@anthropic-ai/sdk/resources/messages.js";
 // 组件接收的属性
 interface DebugViewProps {
   model: string;                 // 使用的模型名称
-  system: string;                // system prompt 文本
   messages: MessageParam[];      // 完整消息历史（即 messages 数组 = 真正发给模型的对话内容）
   // tools 用 any[]：这里只做展示，不关心其精确类型，避免和工具系统耦合
   tools?: any[];                 // 本轮请求携带的工具定义（getToolsApiParams() 的结果）
@@ -91,14 +91,17 @@ function renderContent(content: MessageParam["content"]): React.ReactNode {
   );
 }
 
-export function DebugView({
+export async function DebugView({
   model,
-  system,
   messages,
   tools,
   visible = true,
-}: DebugViewProps): React.ReactNode {
+}: DebugViewProps): Promise<React.ReactNode> {
   if (!visible) return null;
+
+  const cwd = process.cwd();
+  const systemParts = await buildSystemPrompt({ cwd });
+  const systemPrompt = renderSystemPrompt(systemParts);
 
   return (
     <Box flexDirection="column" marginTop={1} borderStyle="round" borderColor="gray" paddingX={1}>
@@ -111,7 +114,7 @@ export function DebugView({
         <Text>{`  model:  ${model}`}</Text>
 
         <Text>{`  system:`}</Text>
-        <Text dimColor>{`    ${system || "(空)"}`}</Text>
+        <Text dimColor>{`    ${systemPrompt || "(空)"}`}</Text>
 
         <Text>
           {`  tools:  `}

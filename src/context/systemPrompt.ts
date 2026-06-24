@@ -24,7 +24,7 @@ export interface BuildSystemPromptOptions {
   additionalInstructions?: string;
 }
 
-function getStaticPromptSections(): string[] {
+function getStaticPromptSections(): string {
   return [
     "You are Cool Agent, a terminal-native local coding assistant running inside the user's workspace.",
     "Operate directly, be concise, and prefer taking concrete actions with tools when useful.",
@@ -34,7 +34,7 @@ function getStaticPromptSections(): string[] {
     "When editing code, preserve existing behavior unless the user explicitly asks for a behavior change.",
     "If a command or edit fails, explain the failure briefly and choose the next best action based on the observed result.",
     "Keep answers structured and practical. Summarize what you changed or found, and avoid unnecessary narration.",
-  ];
+  ].join("\n");
 }
 
 async function getGitContext(cwd: string): Promise<Pick<RuntimeEnvironmentContext, "gitBranch" | "gitStatus" | "gitRecentCommit">> {
@@ -61,7 +61,7 @@ export async function getRuntimeEnvironmentContext(cwd: string): Promise<Runtime
   return {
     cwd,
     date: new Date().toISOString(),
-    os:       os.platform() + " " + os.release() + " (" + os.arch() + ")",
+    os: os.platform() + " " + os.release() + " (" + os.arch() + ")",
     ...git,
   };
 }
@@ -95,7 +95,7 @@ export async function buildSystemPrompt(options: BuildSystemPromptOptions): Prom
 
   const staticSections = [
     SYSTEM_PROMPT_STATIC_START,
-    ...getStaticPromptSections(),
+    getStaticPromptSections(),
     SYSTEM_PROMPT_STATIC_END,
   ];
 
