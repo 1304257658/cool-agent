@@ -1,4 +1,9 @@
-// 三种内容块
+// 四种内容块类型
+export interface ThinkingBlock {
+    type: "thinking";
+    text: string;
+}
+
 export interface TextBlock {
     type: "text";
     text: string;
@@ -18,7 +23,7 @@ export interface ToolResultBlock {
     is_error?: boolean;
 }
 
-export type ContentBlock = TextBlock | ToolUseBlock | ToolResultBlock;
+export type ContentBlock = ThinkingBlock | TextBlock | ToolUseBlock | ToolResultBlock;
 
 // 消息 = role + content blocks
 export interface UserMessage {
@@ -57,6 +62,11 @@ export interface Usage {
 
 // ─── Stream Event Types ────────────────────────────────────────────
 
+export interface StreamThinkingEvent {
+  type: "thinking";
+  text: string;
+}
+
 export interface StreamTextEvent {
   type: "text";
   text: string;
@@ -91,6 +101,7 @@ export interface StreamErrorEvent {
 }
 
 export type StreamEvent = 
+  | StreamThinkingEvent         // 思考增量
   | StreamTextEvent             // 文字增量
   | StreamToolUseStartEvent     // 工具调用开始
   | StreamToolUseInputEvent     // 工具参数 JSON 碎片

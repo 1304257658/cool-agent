@@ -35,7 +35,7 @@ export const globTool: Tool = {
     if (!input.pattern) {
       return { content: "Error: pattern is required.", isError: true };
     }
-
+    
     let basePath: string;
     try {
       basePath = resolveWorkspacePath(input.path ?? ".", context.cwd);
@@ -46,30 +46,48 @@ export const globTool: Tool = {
       };
     }
 
-    try {
-      if (await hasCommand("rg")) {
-        const { stdout } = await execFileAsync("rg", ["--files", "--hidden", "-g", input.pattern], {
-          cwd: basePath,
+    // 先判断操作系统
+    if (process.platform === "win32") {
+      try {
+        const { stdout } = await execFileAsync("cmd.exe", ["/c", `dir ${basePath}\\*${input.pattern.replace(/\*\*/g, "*")}`, "/B", "/S"], {
           maxBuffer: 1024 * 1024,
         });
         const output = stdout.trim();
         return {
           content: output ? `Matched files under ${basePath}:\n${output}` : `No files matched ${input.pattern}`,
         };
+      } catch (error: unknown) {
+        return {
+          content: `Error running glob search: ${error instanceof Error ? error.message : String(error)}`,
+          isError: true,
+        };
       }
+    } else {
+      try {
+        if (await hasCommand("rg")) {
+          const { stdout } = await execFileAsync("rg", ["--files", "--hidden", "-g", input.pattern], {
+            cwd: basePath,
+            maxBuffer: 1024 * 1024,
+          });
+          const output = stdout.trim();
+          return {
+            content: output ? `Matched files under ${basePath}:\n${output}` : `No files matched ${input.pattern}`,
+          };
+        }
 
-      const { stdout } = await execFileAsync("find", [basePath, "-path", `*${input.pattern.replace(/\*\*/g, "*")}`], {
-        maxBuffer: 1024 * 1024,
-      });
-      const output = stdout.trim();
-      return {
-        content: output ? `Matched files under ${basePath}:\n${output}` : `No files matched ${input.pattern}`,
-      };
-    } catch (error: unknown) {
-      return {
-        content: `Error running glob search: ${error instanceof Error ? error.message : String(error)}`,
-        isError: true,
-      };
+        const { stdout } = await execFileAsync("find", [basePath, "-path", `*${input.pattern.replace(/\*\*/g, "*")}`], {
+          maxBuffer: 1024 * 1024,
+        });
+        const output = stdout.trim();
+        return {
+          content: output ? `Matched files under ${basePath}:\n${output}` : `No files matched ${input.pattern}`,
+        };
+      } catch (error: unknown) {
+        return {
+          content: `Error running glob search: ${error instanceof Error ? error.message : String(error)}`,
+          isError: true,
+        };
+      }
     }
   },
   isReadOnly(): boolean {

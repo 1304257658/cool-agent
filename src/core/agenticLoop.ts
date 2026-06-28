@@ -1,5 +1,3 @@
-// React 是必须导入的，因为 JSX 编译后依赖 React
-import React, { useState, useEffect, useRef, useCallback } from 'react';
 import type Anthropic from "@anthropic-ai/sdk";
 
 import type { MessageParam } from "@anthropic-ai/sdk/resources/messages.js";

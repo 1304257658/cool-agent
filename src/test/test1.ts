@@ -1,15 +1,59 @@
-import path from "path";
-import { expandHome } from "../tools/pathUtils.ts";
+import "dotenv/config";
+import {
+  query,
+} from "../core/agenticLoop.js";
+import { buildSystemPrompt, renderSystemPrompt } from "../context/systemPrompt.js";
+import { getToolsApiParams } from "../tools/index.js";
 
-// console.log(path.resolve(expandHome("test.txt")));
 
-let oldString = "Hello, World!\nThis is a test.\nAnd it's working!";
-let newString = "你好\n这是测试\n它正常运行了！"
+const env = process.env;
 
-let oldLines = oldString.split("\n").slice(0, 3);
-let newLines = newString.split("\n").slice(0, 3);
-console.log([
-"Preview:",
-...oldLines.map((line) => `- ${line}`),
-...newLines.map((line) => `+ ${line}`),
-].join("\n"));
+const cwd = process.cwd();
+const systemParts = await buildSystemPrompt({ cwd });
+const systemPrompt = renderSystemPrompt(systemParts);
+const tools = getToolsApiParams();
+
+const abortController = new AbortController();
+
+const loop = query({
+    messages: [{ role: "user", content: ".env 文件中都有哪些内容，你认为这是一个什么项目？使用中文解答我的疑问。" }],
+    systemPrompt: systemPrompt,
+    tools: tools,
+    model: env.ANTHROPIC_MODEL_NAME as string,
+    abortSignal: abortController.signal,
+    toolContext: {
+        cwd,
+        abortSignal: abortController.signal,
+    }
+});
+
+while (true) {
+    const { value, done } = await loop.next();
+    if (done) {
+        console.log(`\nTokens: ${value.usage.input_tokens} in / ${value.usage.output_tokens} out`);
+        break;
+    }
+    switch (value.type) {
+        case "assistant_message":
+        case "tool_result_message":
+            console.log(value.message);
+            break;
+        default:
+            break;
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

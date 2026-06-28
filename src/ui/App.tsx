@@ -1,9 +1,7 @@
 // React 是必须导入的，因为 JSX 编译后依赖 React
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React from 'react';
 // Ink 终端 UI 框架核心组件
-import { Box, Text, useApp, useInput } from 'ink';
-// Anthropic Messages API 的类型定义
-import type { MessageParam } from "@anthropic-ai/sdk/resources/messages.js";
+import { Box, useApp } from 'ink';
 
 import { useAgentSession } from './hooks/useAgentSession.js';
 import { usePromptInput } from './hooks/usePromptInput.js';
@@ -22,43 +20,14 @@ import { DebugView } from './components/DebugView.js';
 // App 组件接收的参数
 interface AppProps {
   model: string;  // 使用的 AI 模型名称（如 claude-sonnet-4-20250514）
+  systemPrompt: string;  // 系统提示词
+
   // permissionMode?: PermissionMode;  // 预留：权限确认模式（未来功能）
 }
 
-// 从 assistant 消息中提取纯文本内容
-// MessageParam.content 可能是 string 或 ContentBlock[] 数组，
-// 需要过滤出 type === "text" 的 block 并拼接文本
-function extractAssistantText(msg: MessageParam): string | null {
-  if (msg.role !== "assistant") return null;
-
-  if (typeof msg.content === "string") {
-    return msg.content || null;
-  }
-
-  // msg.content is ContentBlock[] when it's not a string
-  // Each block has a `type` property, and text blocks have `text` property
-  const texts = msg.content
-    // 过滤掉非文本块
-    .filter((block) => block.type === "text")
-    // 从每个数据块中提取文本
-    .map((block) => (block as { type: "text"; text: string }).text)
-    // 过滤掉空字符串
-    .filter(Boolean);
-
-  return texts.length > 0 ? texts.join("") : null;
-}
-
-
-
-
-
-export function App({ model }: AppProps): React.ReactNode {
+export function App({ model, systemPrompt }: AppProps): React.ReactNode {
   // useApp().exit() 用于退出整个 Ink 应用程序
   const { exit } = useApp();
-
-  // 中断控制（不触发重渲染，用 useRef 保持可变引用）
-  const abortRef = useRef<AbortController | null>(null);
-  const messagesRef = useRef<MessageParam[]>([]);
 
   const { state, actions } = useAgentSession({
     model,
@@ -102,6 +71,7 @@ export function App({ model }: AppProps): React.ReactNode {
       {/* ── 显示调试信息 ── */}
       <DebugView
         model={model}
+        systemPrompt={systemPrompt}
         messages={state.messages}
         tools={getToolsApiParams()}
       />

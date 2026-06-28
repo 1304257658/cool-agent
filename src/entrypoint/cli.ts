@@ -7,7 +7,7 @@ import { buildSystemPrompt, renderSystemPrompt } from "../context/systemPrompt.j
 const VERSION = "0.1.1";
 
 
-async function renderCli(model?: string) {
+async function renderCli(model?: string, systemPrompt?: string) {
     // 动态 import React/Ink（只在真正需要时加载）
     const React = await import("react");
     const { render } = await import("ink");
@@ -17,7 +17,7 @@ async function renderCli(model?: string) {
     const resolvedModel = model ?? DEFAULT_MODEL;
 
     const { waitUntilExit } = render(
-        React.createElement(App, { model: resolvedModel }),
+        React.createElement(App, { model: resolvedModel, systemPrompt: systemPrompt ?? SYSTEM_PROMPT }),
     );
     await waitUntilExit();
 
@@ -70,6 +70,7 @@ Commands (in REPL):
     const dumpSystemPrompt = process.argv.includes("--dump-system-prompt");
 
     if (dumpSystemPrompt) {
+        // 构建系统提示词
         const cwd = process.cwd();
         const systemParts = await buildSystemPrompt({ cwd });
         const systemPrompt = renderSystemPrompt(systemParts);
@@ -77,7 +78,11 @@ Commands (in REPL):
         process.exit(0);
     }
     
-    await renderCli(model);
+    // DebugView 视图渲染系统提示词
+    const cwd = process.cwd();
+    const systemParts = await buildSystemPrompt({ cwd });
+    const systemPrompt = renderSystemPrompt(systemParts);
+    await renderCli(model, systemPrompt);
 }
 
 main().catch((err) => {
