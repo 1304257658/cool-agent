@@ -1,17 +1,17 @@
 import { useCallback, useMemo, useState } from "react";
 // Ink 终端 UI 框架核心组件
 import { useInput } from 'ink';
-// import type { PermissionDecision } from "../../permissions/permissions.js";
+import type { PermissionDecision } from "../../permissions/permissions.js";
 import type { CommandSuggestion } from "../types.js";
 
 
 interface UsePromptInputOptions {
   isLoading: boolean;
-//   hasPermissionPrompt: boolean;
+  hasPermissionPrompt: boolean;
   onSubmit: (text: string) => Promise<unknown> | unknown;
   onExit: () => void;
   onInterrupt: () => boolean;
-//   onPermissionDecision: (decision: PermissionDecision) => boolean;
+  onPermissionDecision: (decision: PermissionDecision) => boolean;
 }
 
 const ALL_COMMANDS: CommandSuggestion[] = [
@@ -25,11 +25,11 @@ const ALL_COMMANDS: CommandSuggestion[] = [
 
 export function usePromptInput({
     isLoading,
-    // hasPermissionPrompt,
+    hasPermissionPrompt,
     onSubmit,
     onExit,
     onInterrupt,
-    // onPermissionDecision,
+    onPermissionDecision,
 }: UsePromptInputOptions) {
   const [inputValue, setInputValue] = useState("");
 
@@ -51,6 +51,18 @@ export function usePromptInput({
     // Ctrl+D：退出程序
     if (key.ctrl && input === "d") {
       onExit();
+      return;
+    }
+
+    if (hasPermissionPrompt) {
+      const normalized = input.toLowerCase();
+      if (normalized === "y") {
+        onPermissionDecision("allow_once");
+      } else if (normalized === "n") {
+        onPermissionDecision("deny");
+      } else if (normalized === "a") {
+        onPermissionDecision("allow_always");
+      }
       return;
     }
 
@@ -82,7 +94,7 @@ export function usePromptInput({
     }
   });
 
-  const CommandSuggestions = useMemo(() => {
+  const commandSuggestions = useMemo(() => {
     if (!inputValue.startsWith("/")) {
         return [];
     };
@@ -94,6 +106,6 @@ export function usePromptInput({
   return {
     inputValue,
     setInputValue,
-    CommandSuggestions,
+    commandSuggestions,
   }
 }

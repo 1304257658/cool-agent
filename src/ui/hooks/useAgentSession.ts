@@ -2,9 +2,17 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 // Anthropic Messages API 的类型定义
 import type { MessageParam } from "@anthropic-ai/sdk/resources/messages.js";
-
+import {
+  loadPermissionSettings,
+  type PermissionDecision,
+  type PermissionMode,
+  type PermissionRequest,
+  type PermissionRuleSet,
+  type PermissionSettings,
+} from "../../permissions/permissions.js";
 // 本地类型定义：工具调用信息和 token 用量汇总
 import type {
+    PermissionPromptState,
     ToolCallInfo,
     UsageSummary,
     SystemNotice,
@@ -15,7 +23,7 @@ import { QueryEngine } from '../../core/queryEngine.js';
 interface UseAgentSessionOptions {
   model: string;
   onExit: () => void;
-//   permissionMode?: PermissionMode;
+  permissionMode?: PermissionMode;
 }
 
 interface SubmitResult {
@@ -103,6 +111,7 @@ function buildCommandNotice(
 export function useAgentSession({
     model,
     onExit,
+    permissionMode,
 }: UseAgentSessionOptions) {
     
     // 对话数据
@@ -116,37 +125,65 @@ export function useAgentSession({
     const [lastUsage, setLastUsage] = useState<UsageSummary | null>(null);  // 上一轮的 token 用量
     const [totalUsage, setTotalUsage] = useState<UsageSummary | null>(null);  // 累计 token 用量
     const [systemNotice, setSystemNotice] = useState<SystemNotice | null>(null);  // 系统通知
-
+    const [permissionPrompt, setPermissionPrompt] = useState<PermissionPromptState | null>(null);
+    const [permissionSettings, setPermissionSettings] = useState<PermissionSettings | null>(null);
     const [currentModel, setCurrentModel] = useState(model);
 
+    const permissionResolverRef = useRef<((decision: PermissionDecision) => void) | null>(null);
+    const sessionRulesRef = useRef<PermissionRuleSet | null>({ allow: [], deny: [] });
     const engineRef = useRef<QueryEngine | null>(null);
 
     const toolContext = useMemo<ToolContext>(() => ({
         cwd: process.cwd(),
     }), []);
 
-    // 中断控制（不触发重渲染，用 useRef 保持可变引用）
-    const abortRef = useRef<AbortController | null>(null);
-    const messagesRef = useRef<MessageParam[]>([]);
-    messagesRef.current = messages;
+    useEffect(() => {
+        void loadPermissionSettings(process.cwd())
+          .then(setPermissionSettings)
+          .catch((error: unknown) => {
+            setSystemNotice({
+                tone: "error",
+                title: "Permission settings error",
+                body: error instanceof Error ? error.message : String(error),
+            });
+          });
+    }, []);
 
     useEffect(() => {
         engineRef.current = new QueryEngine({
             model: model,
             toolContext: toolContext,
+            permissionMode: permissionMode ?? permissionSettings?.mode,
+            permissionSettings: permissionSettings ?? undefined,
+            sessionPermissionRules: sessionRulesRef.current ?? undefined,
+            onPermissionRequest: (request: PermissionRequest) => {
+                setSpinnerLabel("Waiting for permission...");
+                setPermissionPrompt({
+                    toolName: request.toolName,
+                    summary: request.summary,
+                    risk: request.risk,
+                    ruleHint: request.ruleHint,
+                });
+                return new Promise<PermissionDecision>((resolve) => {
+                    permissionResolverRef.current = resolve;
+                });
+            },
         });
         setCurrentModel(model);
-    }, [model, toolContext]);
+    }, [model, permissionMode, permissionSettings, toolContext]);
 
     const interrupt = useCallback(() => {
-        if (!abortRef.current?.abort()) {
+        if (permissionResolverRef.current) {
+            permissionResolverRef.current("deny");
+            permissionResolverRef.current = null;
+            setPermissionPrompt(null);
             setSystemNotice({
                 tone: "info",
-                title: "Nothing to interrupt",
+                title: "Permission denied",
                 body: "Use /exit, /quit, /bye, or Ctrl+D to exit."
             });
             return true;
-        }
+        };
 
         if (!engineRef.current?.interrupt()) {
             setSystemNotice({
@@ -163,6 +200,26 @@ export function useAgentSession({
             tone: "info",
             title: "Interrupted",
             body: "Use /exit, /quit, /bye, or Ctrl+D to exit."
+        });
+        return true;
+    }, []);
+
+    const resolvePermission = useCallback((decision: PermissionDecision) => {
+        if (!permissionResolverRef.current) {
+            return false;
+        }
+        permissionResolverRef.current(decision);
+        permissionResolverRef.current = null;
+        setPermissionPrompt(null);
+        setSystemNotice({
+            tone: decision === "deny" ? "error" : "info",
+            title: decision === "deny" ? "Permission denied" : "Permission granted",
+            body: 
+                decision === "allow_always"
+                ? "Permission granted and remembered for this session."
+                : decision === "allow_once"
+                  ? "Permission granted once."
+                  : "Permission denied.",
         });
         return true;
     }, []);
@@ -205,22 +262,9 @@ export function useAgentSession({
             if (!isSlashCommand) {
                 setLastUsage(null);
             }
+            setPermissionPrompt(null);
             setIsLoading(!isSlashCommand);
             setSpinnerLabel("Thinking");
-
-            if (!trimmed) {
-                return { handled: false };
-            }
-
-            // if (trimmed.startsWith("/")) {
-            //     return yield* this.handleCommand(trimmed);
-            // }
-
-            const userMessage: MessageParam = { role: "user", content: trimmed };
-            setMessages([...messages, userMessage]);
-
-            const abortController = new AbortController();
-            abortRef.current = abortController;
 
             try {
                 const run = engineRef.current.submitMessage(trimmed);
@@ -240,7 +284,7 @@ export function useAgentSession({
                     // export type AgenticLoopEvent =
                     //   | { type: "text"; text: string }
                     //   | { type: "tool_use_start"; id: string; name: string }
-                    // //   | { type: "permission_request"; request: PermissionRequest }
+                    //   | { type: "permission_request"; request: PermissionRequest }
                     //   | { type: "tool_use_done"; id: string; name: string; result: ToolResult }
                     //   | { type: "assistant_message"; message: MessageParam }
                     //   | { type: "tool_result_message"; message: MessageParam }
@@ -256,8 +300,15 @@ export function useAgentSession({
                                 name: value.name
                             }]);
                             break;
-                        // case "permission_request":
-                        //     break;
+                        case "permission_request":
+                            setSpinnerLabel("Waiting for permission");
+                            setPermissionPrompt({
+                                toolName: value.request.toolName,
+                                summary: value.request.summary,
+                                risk: value.request.risk,
+                                ruleHint: value.request.ruleHint,
+                            });
+                            break;
                         case "tool_use_done":
                             setToolCalls((prev) => markToolCallComplete(
                                     prev,
@@ -334,6 +385,8 @@ export function useAgentSession({
                 }
             } finally {
                 setIsLoading(false);
+                permissionResolverRef.current = null;
+                setPermissionPrompt(null);
             }
 
             return {
@@ -351,13 +404,14 @@ export function useAgentSession({
             lastUsage,
             totalUsage,
             systemNotice,
-            // permissionPromptState,
+            permissionPrompt,
+            permissionMode: permissionMode ?? permissionSettings?.mode ?? "default",
             currentModel,
         },
         actions: {
             submit,
             interrupt,
-            // resolvePermission,
+            resolvePermission,
         }
     }
 }

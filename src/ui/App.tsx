@@ -3,6 +3,7 @@ import React from 'react';
 // Ink 终端 UI 框架核心组件
 import { Box, useApp } from 'ink';
 
+import type { PermissionMode } from "../permissions/permissions.js";
 import { useAgentSession } from './hooks/useAgentSession.js';
 import { usePromptInput } from './hooks/usePromptInput.js';
 import { getToolsApiParams } from "../tools/index.js";
@@ -15,30 +16,33 @@ import { ToolCallList } from './components/ToolCallList.js';
 import { SystemPanel } from './components/SystemPanel.js';
 import { StatusBar } from './components/StatusBar.js';
 import { DebugView } from './components/DebugView.js';
+import { CommandSuggestions } from './components/CommandSuggestions.js';
 
 
 // App 组件接收的参数
 interface AppProps {
   model: string;  // 使用的 AI 模型名称（如 claude-sonnet-4-20250514）
   systemPrompt: string;  // 系统提示词
-
-  // permissionMode?: PermissionMode;  // 预留：权限确认模式（未来功能）
+  permissionMode?: PermissionMode;  // 预留：权限确认模式（未来功能）
 }
 
-export function App({ model, systemPrompt }: AppProps): React.ReactNode {
+export function App({ model, systemPrompt, permissionMode }: AppProps): React.ReactNode {
   // useApp().exit() 用于退出整个 Ink 应用程序
   const { exit } = useApp();
 
   const { state, actions } = useAgentSession({
     model,
     onExit: exit,
+    permissionMode: permissionMode,
   })
 
-  const { inputValue, CommandSuggestions } = usePromptInput({
+  const { inputValue, commandSuggestions } = usePromptInput({
     isLoading: state.isLoading,
+    hasPermissionPrompt: state.permissionPrompt !== null,
     onSubmit: actions.submit,
     onExit: exit,
     onInterrupt: actions.interrupt,
+    onPermissionDecision: actions.resolvePermission,
   })
     
   return (
@@ -81,6 +85,9 @@ export function App({ model, systemPrompt }: AppProps): React.ReactNode {
         isLoading={state.isLoading}
         inputValue={inputValue}
       />
+      
+      {/* ── 命令建议：展示可用命令 ── */}
+      <CommandSuggestions items={commandSuggestions} />
     </Box>
   );
 }

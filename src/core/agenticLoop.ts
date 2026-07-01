@@ -1,6 +1,14 @@
 import type Anthropic from "@anthropic-ai/sdk";
 
 import type { MessageParam } from "@anthropic-ai/sdk/resources/messages.js";
+import {
+  checkPermission,
+  type PermissionDecision,
+  type PermissionMode,
+  type PermissionRequest,
+  type PermissionRuleSet,
+  type PermissionSettings,
+} from "../permissions/permissions.js";
 import { streamMessage } from "../services/api/streaming.js";
 import { findToolByName } from "../tools/index.js";
 import type { ToolContext, ToolResult } from "../tools/Tool.js";
@@ -31,7 +39,10 @@ export type AgenticLoopEvent =
     id: string;
     name: string;
   }
-//   | { type: "permission_request"; request: PermissionRequest }
+  | {
+    type: "permission_request";
+    request: PermissionRequest;
+  }
   | {
     type: "tool_use_done";
     id: string;
@@ -71,17 +82,17 @@ export interface QueryParams {
   abortSignal?: AbortSignal;
   toolContext: ToolContext;
   maxTurns?: number;
-  // permissionMode?: PermissionMode;
-  // permissionSettings?: PermissionSettings;
-  // sessionPermissionRules?: PermissionRuleSet;
-  // onPermissionRequest?: (request: PermissionRequest) => Promise<PermissionDecision>;
+  permissionMode?: PermissionMode;
+  permissionSettings?: PermissionSettings;
+  sessionPermissionRules?: PermissionRuleSet;
+  onPermissionRequest?: (request: PermissionRequest) => Promise<PermissionDecision>;
 }
 
 export interface RunToolsOptions {
-  // permissionMode?: PermissionMode;
-  // permissionSettings?: PermissionSettings;
-  // sessionPermissionRules?: PermissionRuleSet;
-  // onPermissionRequest?: (request: PermissionRequest) => Promise<PermissionDecision>;
+  permissionMode?: PermissionMode;
+  permissionSettings?: PermissionSettings;
+  sessionPermissionRules?: PermissionRuleSet;
+  onPermissionRequest?: (request: PermissionRequest) => Promise<PermissionDecision>;
 }
 
 export interface ToolExecutionResult {
@@ -98,7 +109,7 @@ async function runTools(
 ): Promise<{
   toolResultsMessage: MessageParam;
   executions: ToolExecutionResult[];
-  // permissionRequests: PermissionRequest[];
+  permissionRequests: PermissionRequest[];
 }> {
   // 遍历 ContentBlock 中的 tool_use 块，在 BUILT_IN_TOOLS 中查找并执行对应工具
   const toolUseBlocks = contentBlocks.filter(
@@ -112,12 +123,13 @@ async function runTools(
     is_error: boolean;
   }> = [];
   const executions: ToolExecutionResult[] = [];
+  const permissionRequests: PermissionRequest[] = [];
   
   for (const block of toolUseBlocks) {
     const tool = findToolByName(block.name);
     if (!tool) {
       const result: ToolResult = {
-        content: `Tool ${block.name} not found`,
+        content: `Error: Unknown tool "${block.name}"`,
         isError: true,
       }
       toolResults.push({
@@ -135,6 +147,66 @@ async function runTools(
     };
 
     try {
+      const permission = await checkPermission({
+        tool,
+        input: block.input as Record<string, unknown>,
+        cwd: context.cwd,
+        mode: options.permissionMode,
+        sessionRules: options.sessionPermissionRules,
+        settings: options.permissionSettings,
+      });
+      if (permission.behavior === "deny") {
+        const result: ToolResult = {
+          content: `Permission denied for ${block.name}: ${permission.reason}`,
+          isError: true,
+        };
+        toolResults.push({
+          type: "tool_result",
+          tool_use_id: block.id,
+          content: result.content,
+          is_error: true,
+        });
+        executions.push({
+          toolUseId: block.id,
+          toolName: block.name,
+          result: result,
+        });
+        continue;
+      }
+
+      if (permission.behavior === "ask") {
+        permissionRequests.push(permission.request);
+        const decision = options.onPermissionRequest 
+        ? await options.onPermissionRequest(permission.request)
+        : "deny";
+
+        if (decision === "deny") {
+          const result: ToolResult = {
+            content: `Permission denied for ${block.name}: user rejected the request`,
+            isError: true,
+          };
+          toolResults.push({
+            type: "tool_result",
+            tool_use_id: block.id,
+            content: result.content,
+            is_error: true,
+          });
+          executions.push({
+            toolUseId: block.id,
+            toolName: block.name,
+            result: result,
+          })
+          continue;
+        }
+
+        if (decision === "allow_always") {
+          const allowRules = options.sessionPermissionRules?.allow;
+          if (allowRules && !allowRules.includes(permission.request.ruleHint)) {
+            allowRules.push(permission.request.ruleHint);
+          }
+        }
+      }
+
       const result = await tool.call(block.input as Record<string, any>, context);
       toolResults.push({
         type: "tool_result",
@@ -170,9 +242,10 @@ async function runTools(
   return {
     toolResultsMessage: {
       role: "user",
-      content: toolResults,
+      content: toolResults as any,
     },
     executions: executions,
+    permissionRequests: permissionRequests,
   };
 }
 
@@ -322,16 +395,26 @@ export async function* query(
     }
 
     // 7. 否则 runTools()
-    const { toolResultsMessage, executions } = await runTools(
+    const { toolResultsMessage, executions, permissionRequests } = await runTools(
       assistantContent,
       {
         ...params.toolContext,
         abortSignal: params.abortSignal,
       },
       {
-        
+        permissionMode: params.permissionMode,
+        permissionSettings: params.permissionSettings,
+        sessionPermissionRules: params.sessionPermissionRules,
+        onPermissionRequest: params.onPermissionRequest,
       },
     );
+
+    for (const request of permissionRequests) {
+      yield {
+        type: "permission_request",
+        request: request,
+      };
+    }
 
     // 8. yield tool_use_done / tool_result_message
     for (const execution of executions) {

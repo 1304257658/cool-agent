@@ -4,7 +4,13 @@ import {
   type AgenticLoopEvent,
   type LoopTerminationReason,
 } from "./agenticLoop.js";
-
+import {
+  type PermissionDecision,
+  type PermissionMode,
+  type PermissionRequest,
+  type PermissionRuleSet,
+  type PermissionSettings,
+} from "../permissions/permissions.js";
 import type { ToolContext } from "../tools/Tool.js";
 import type { Usage } from "../types/message.js";
 
@@ -40,6 +46,10 @@ export type QueryEngineEvent =
 export interface QueryEngineOptions {
     model: string;
     toolContext: ToolContext;
+    permissionMode?: PermissionMode;
+    permissionSettings?: PermissionSettings;
+    sessionPermissionRules?: PermissionRuleSet;
+    onPermissionRequest?: (request: PermissionRequest) => Promise<PermissionDecision>;
 }
 
 export interface QueryEngineState {
@@ -64,11 +74,19 @@ export class QueryEngine {
     private readonly defaultModel: string;
     private sessionModelOverride: string | null = null;
     private readonly toolContext: ToolContext;
+    private readonly permissionMode?: PermissionMode;
+    private readonly permissionSettings?: PermissionSettings;
+    private readonly sessionPermissionRules?: PermissionRuleSet;
+    private readonly onPermissionRequest?: (request: PermissionRequest) => Promise<PermissionDecision>;
     private abortController: AbortController | null = null;
 
     constructor(options: QueryEngineOptions) {
         this.defaultModel = options.model;
         this.toolContext = options.toolContext;
+        this.permissionMode = options.permissionMode;
+        this.permissionSettings = options.permissionSettings;
+        this.sessionPermissionRules = options.sessionPermissionRules;
+        this.onPermissionRequest = options.onPermissionRequest;
     }
 
     private getActiveModel(): string {
@@ -276,7 +294,9 @@ export class QueryEngine {
                 toolContext: {
                     ...this.toolContext,
                     abortSignal: abortController.signal,
-                }
+                },
+                sessionPermissionRules: this.sessionPermissionRules,
+                onPermissionRequest: this.onPermissionRequest,
             });
 
             while (true) {

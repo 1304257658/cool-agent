@@ -2,12 +2,24 @@
 import { loadEnv } from "../utils/loadEnv.js";
 loadEnv();
 import { buildSystemPrompt, renderSystemPrompt } from "../context/systemPrompt.js";
-
+import type { PermissionMode } from "../permissions/permissions.js";
 
 const VERSION = "0.1.1";
 
+function parsePermissionMode(argv: string[]): PermissionMode | undefined {
+    if (argv.includes("--auto")) return "auto";
+    if (argv.includes("--plan")) return "plan";
 
-async function renderCli(model?: string, systemPrompt?: string) {
+    const modeIndex = argv.indexOf("--permission-mode");
+    const value = modeIndex !== -1 ? argv[modeIndex + 1] : undefined;
+    if (value && ["default", "plan", "auto"].includes(value)) {
+        return value as PermissionMode;
+    }
+    
+    return undefined;
+}
+
+async function renderCli(model?: string, systemPrompt?: string, permissionMode?: PermissionMode) {
     // 动态 import React/Ink（只在真正需要时加载）
     const React = await import("react");
     const { render } = await import("ink");
@@ -17,7 +29,7 @@ async function renderCli(model?: string, systemPrompt?: string) {
     const resolvedModel = model ?? DEFAULT_MODEL;
 
     const { waitUntilExit } = render(
-        React.createElement(App, { model: resolvedModel, systemPrompt: systemPrompt ?? SYSTEM_PROMPT }),
+        React.createElement(App, { model: resolvedModel, systemPrompt: systemPrompt ?? SYSTEM_PROMPT, permissionMode }), { exitOnCtrlC: false }
     );
     await waitUntilExit();
 
@@ -57,14 +69,8 @@ Commands (in REPL):
     const modelIndex = process.argv.indexOf("--model");
     const model = modelIndex !== -1 ? process.argv[modelIndex + 1] : undefined;
 
-    // 解析 --plan 参数
-    const plan = process.argv.includes("--plan");
-
-    // 解析 --auto 参数
-    const auto = process.argv.includes("--auto");
-
     // 解析 --permission-mode 参数
-    const permissionMode = process.argv.includes("--permission-mode");
+    const permissionMode = parsePermissionMode(process.argv);
 
     // 解析 --dump-system-prompt 参数
     const dumpSystemPrompt = process.argv.includes("--dump-system-prompt");
@@ -82,7 +88,7 @@ Commands (in REPL):
     const cwd = process.cwd();
     const systemParts = await buildSystemPrompt({ cwd });
     const systemPrompt = renderSystemPrompt(systemParts);
-    await renderCli(model, systemPrompt);
+    await renderCli(model, systemPrompt, permissionMode);
 }
 
 main().catch((err) => {
