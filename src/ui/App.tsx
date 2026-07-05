@@ -24,9 +24,11 @@ interface AppProps {
   model: string;  // 使用的 AI 模型名称（如 claude-sonnet-4-20250514）
   systemPrompt: string;  // 系统提示词
   permissionMode?: PermissionMode;  // 预留：权限确认模式（未来功能）
+  shouldResume?: boolean;  // 是否恢复会话
+  resumeSessionId?: string;  // 恢复会话 ID
 }
 
-export function App({ model, systemPrompt, permissionMode }: AppProps): React.ReactNode {
+export function App({ model, systemPrompt, permissionMode, shouldResume, resumeSessionId }: AppProps): React.ReactNode {
   // useApp().exit() 用于退出整个 Ink 应用程序
   const { exit } = useApp();
 
@@ -34,6 +36,8 @@ export function App({ model, systemPrompt, permissionMode }: AppProps): React.Re
     model,
     onExit: exit,
     permissionMode: permissionMode,
+    shouldResume: shouldResume,
+    resumeSessionId: resumeSessionId,
   })
 
   const { inputValue, commandSuggestions } = usePromptInput({
@@ -68,8 +72,8 @@ export function App({ model, systemPrompt, permissionMode }: AppProps): React.Re
         // 流式文本：API 正在回复时实时显示增量文本
         streamingText={state.streamingText}
         lastUsage={state.lastUsage}
-        // permissionPrompt={state.permissionPrompt}
-        // permissionMode={state.permissionMode}
+        permissionPrompt={state.permissionPrompt}
+        permissionMode={state.permissionMode}
       />
       
       {/* ── 显示调试信息 ── */}

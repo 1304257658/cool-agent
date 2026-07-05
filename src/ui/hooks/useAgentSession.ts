@@ -10,6 +10,12 @@ import {
   type PermissionRuleSet,
   type PermissionSettings,
 } from "../../permissions/permissions.js";
+import {
+    appendTranscriptEntry,
+    createSessionId,
+    initSessionStorage,
+    restoreSession,
+} from "../../session/storage.js"
 // 本地类型定义：工具调用信息和 token 用量汇总
 import type {
     PermissionPromptState,
@@ -24,6 +30,8 @@ interface UseAgentSessionOptions {
   model: string;
   onExit: () => void;
   permissionMode?: PermissionMode;
+  shouldResume?: boolean;
+  resumeSessionId?: string;
 }
 
 interface SubmitResult {
@@ -62,16 +70,16 @@ function buildCommandNotice(
                 "/clear  Clear conversation history",
                 "/cost  Show session token usage",
                 "/model [name|default]  Inspect or override the session model",
-                "/history  Show message count",
+                "/history  Show saved sessions for this project",
                 "/exit | /quit | /bye  Exit session",
             ].join("\n"),
         }
     }
 
-    if (message.startsWith("Session usage")) {
+    if (message.startsWith("Session usage") || message.startsWith("Recent sessions:")) {
         return {
             tone: kind,
-            title: "Session usage",
+            title: message.startsWith("Recent sessions:") ? "Session history" : "Session usage",
             body: message,
         };
     }
@@ -112,6 +120,8 @@ export function useAgentSession({
     model,
     onExit,
     permissionMode,
+    shouldResume,
+    resumeSessionId,
 }: UseAgentSessionOptions) {
     
     // 对话数据
@@ -132,6 +142,7 @@ export function useAgentSession({
     const permissionResolverRef = useRef<((decision: PermissionDecision) => void) | null>(null);
     const sessionRulesRef = useRef<PermissionRuleSet | null>({ allow: [], deny: [] });
     const engineRef = useRef<QueryEngine | null>(null);
+    const sessionIdRef = useRef<string>(createSessionId());
 
     const toolContext = useMemo<ToolContext>(() => ({
         cwd: process.cwd(),
@@ -149,28 +160,82 @@ export function useAgentSession({
           });
     }, []);
 
+    // 初始化会话
     useEffect(() => {
-        engineRef.current = new QueryEngine({
-            model: model,
-            toolContext: toolContext,
-            permissionMode: permissionMode ?? permissionSettings?.mode,
-            permissionSettings: permissionSettings ?? undefined,
-            sessionPermissionRules: sessionRulesRef.current ?? undefined,
-            onPermissionRequest: (request: PermissionRequest) => {
-                setSpinnerLabel("Waiting for permission...");
-                setPermissionPrompt({
-                    toolName: request.toolName,
-                    summary: request.summary,
-                    risk: request.risk,
-                    ruleHint: request.ruleHint,
+        if (!permissionSettings) return;
+
+        let cancelled = false;
+        const initialize = async () => {
+            try {
+                let initialMessages: MessageParam[] = [];
+                let initialUsage = { input_tokens: 0, output_tokens: 0 };
+                if (shouldResume) {
+                    const restored = await restoreSession(toolContext.cwd, resumeSessionId ?? undefined);
+                    if (cancelled) return;
+                    sessionIdRef.current = restored.summary.sessionId;
+
+                    initialMessages = restored.messages;
+                    initialUsage = restored.summary.totalUsage;
+
+                    setMessages(initialMessages);
+                    setTotalUsage({
+                        input: initialUsage.input_tokens,
+                        output: initialUsage.output_tokens,
+                    });
+                    setSystemNotice({
+                        tone: "info",
+                        title: "Session restored",
+                        body: `Resumed session ${sessionIdRef.current} with ${restored.summary.messageCount} messages.`
+                    });
+                } else {
+                    const startedAt = new Date().toISOString();
+                    await initSessionStorage({
+                        sessionId: sessionIdRef.current,
+                        model: model,
+                        cwd: toolContext.cwd,
+                        startedAt: startedAt,
+                        updatedAt: startedAt,
+                    });
+                }
+
+                engineRef.current = new QueryEngine({
+                    model: model,
+                    toolContext: toolContext,
+                    initialMessages,
+                    initialUsage,
+                    permissionMode: permissionMode ?? permissionSettings?.mode,
+                    permissionSettings: permissionSettings ?? undefined,
+                    sessionPermissionRules: sessionRulesRef.current ?? undefined,
+                    onPermissionRequest: (request: PermissionRequest) => {
+                        setSpinnerLabel("Waiting for permission...");
+                        setPermissionPrompt({
+                            toolName: request.toolName,
+                            summary: request.summary,
+                            risk: request.risk,
+                            ruleHint: request.ruleHint,
+                        });
+                        return new Promise<PermissionDecision>((resolve) => {
+                            permissionResolverRef.current = resolve;
+                        });
+                    },
                 });
-                return new Promise<PermissionDecision>((resolve) => {
-                    permissionResolverRef.current = resolve;
+                setCurrentModel(model);
+            } catch (error: unknown) {
+                if (cancelled) return;
+                setSystemNotice({
+                    tone: "error",
+                    title: "Session restore error",
+                    body: error instanceof Error ? error.message : String(error),
                 });
-            },
-        });
-        setCurrentModel(model);
-    }, [model, permissionMode, permissionSettings, toolContext]);
+            }
+        };
+
+        void initialize();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [model, permissionMode, permissionSettings, shouldResume, resumeSessionId, toolContext]);
 
     const interrupt = useCallback(() => {
         if (permissionResolverRef.current) {
@@ -261,6 +326,15 @@ export function useAgentSession({
             setSystemNotice(null);
             if (!isSlashCommand) {
                 setLastUsage(null);
+                await appendTranscriptEntry(toolContext.cwd, sessionIdRef.current, {
+                    type: "message",
+                    timestamp: new Date().toISOString(),
+                    role: "user",
+                    message: {
+                        role: "user",
+                        content: trimmed
+                    },
+                });
             }
             setPermissionPrompt(null);
             setIsLoading(!isSlashCommand);
@@ -299,6 +373,13 @@ export function useAgentSession({
                             setToolCalls((prev) => [...prev, {
                                 name: value.name
                             }]);
+                            await appendTranscriptEntry(toolContext.cwd, sessionIdRef.current, {
+                                type: "tool_event",
+                                timestamp: new Date().toISOString(),
+                                name: value.name,
+                                // arguments: value.request.arguments,
+                                phase: "start",
+                            });
                             break;
                         case "permission_request":
                             setSpinnerLabel("Waiting for permission");
@@ -317,9 +398,24 @@ export function useAgentSession({
                                     value.result.isError
                                 ),
                             );
+                            await appendTranscriptEntry(toolContext.cwd, sessionIdRef.current, {
+                                type: "tool_event",
+                                timestamp: new Date().toISOString(),
+                                name: value.name,
+                                // arguments: value.request.arguments,
+                                phase: "done",
+                                resultLength: value.result.content.length,
+                                isError: value.result.isError,
+                            });
                             break;
                         case "assistant_message":
                             setStreamingText("");
+                            await appendTranscriptEntry(toolContext.cwd, sessionIdRef.current, {
+                                type: "message",
+                                timestamp: new Date().toISOString(),
+                                role: "assistant",
+                                message: value.message,
+                            });
                             break;
                         case "tool_result_message":
                             setSpinnerLabel("Thinking");
@@ -331,13 +427,29 @@ export function useAgentSession({
                             setLastUsage({
                                 input: value.turnUsage.input_tokens,
                                 output: value.turnUsage.output_tokens,
-                            })
+                            });
+                            setTotalUsage({
+                                input: value.totalUsage.input_tokens,
+                                output: value.totalUsage.output_tokens,
+                            });
+                            await appendTranscriptEntry(toolContext.cwd, sessionIdRef.current, {
+                                type: "usage",
+                                timestamp: new Date().toISOString(),
+                                turn: value.turnUsage,
+                                total: value.totalUsage,
+                            });
                             break;
                         case "command":
                             setSystemNotice(buildCommandNotice(
                                 value.message,
                                 value.kind,
                             ));
+                            await appendTranscriptEntry(toolContext.cwd, sessionIdRef.current, {
+                                type: "system",
+                                timestamp: new Date().toISOString(),
+                                level: value.kind,
+                                message: value.message,
+                            });
                             break;
                         case "model_changed":
                             setCurrentModel(value.model);
@@ -362,6 +474,12 @@ export function useAgentSession({
                                 tone: "error",
                                 title: "Agent error",
                                 body: value.error.message
+                            });
+                            await appendTranscriptEntry(toolContext.cwd, sessionIdRef.current, {
+                                type: "system",
+                                timestamp: new Date().toISOString(),
+                                level: "error",
+                                message: value.error.message,
                             });
                             break;
                         default:
@@ -392,7 +510,7 @@ export function useAgentSession({
             return {
                 handled: true
             }
-        }, [onExit]);
+        }, [onExit, toolContext.cwd]);
     
     return {
         state: {

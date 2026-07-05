@@ -38,6 +38,7 @@ export type AgenticLoopEvent =
     type: "tool_use_start";
     id: string;
     name: string;
+    // arguments: string;
   }
   | {
     type: "permission_request";

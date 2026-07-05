@@ -8,8 +8,8 @@ interface StatusBarProps {
   spinnerLabel: string;
   streamingText: string;
   lastUsage: UsageSummary | null;
-//   permissionPrompt: PermissionPromptState | null;
-//   permissionMode: string;
+  permissionPrompt: PermissionPromptState | null;
+  permissionMode: string;
 }
 
 export function StatusBar({
@@ -17,16 +17,16 @@ export function StatusBar({
   spinnerLabel,
   streamingText,
   lastUsage,
-//   permissionPrompt,
-//   permissionMode,
+  permissionPrompt,
+  permissionMode,
 }: StatusBarProps): React.ReactNode {
   return (
     <>
-      {/* <Box>
+      <Box>
         <Text dimColor>{"  mode: "}{permissionMode}</Text>
-      </Box> */}
+      </Box>
 
-      {/* {permissionPrompt && (
+      {permissionPrompt && (
         <Box marginTop={1} flexDirection="column" borderStyle="round" borderColor="yellow" paddingX={1}>
           <Text color="yellow">{"⚠ Permission required: "}{permissionPrompt.toolName}</Text>
           <Text dimColor>{"  args: "}{permissionPrompt.summary}</Text>
@@ -34,7 +34,7 @@ export function StatusBar({
           <Text dimColor>{"  always allow rule: "}{permissionPrompt.ruleHint}</Text>
           <Text color="cyan">{"  [y] allow once   [n] deny   [a] always allow (session)"}</Text>
         </Box>
-      )} */}
+      )}
 
       {isLoading && !streamingText && (
         <Box marginTop={1}>

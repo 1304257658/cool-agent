@@ -19,7 +19,7 @@ function parsePermissionMode(argv: string[]): PermissionMode | undefined {
     return undefined;
 }
 
-async function renderCli(model?: string, systemPrompt?: string, permissionMode?: PermissionMode) {
+async function renderCli(model?: string, systemPrompt?: string, permissionMode?: PermissionMode, shouldResume?: boolean, resumeSessionId?: string) {
     // 动态 import React/Ink（只在真正需要时加载）
     const React = await import("react");
     const { render } = await import("ink");
@@ -29,7 +29,7 @@ async function renderCli(model?: string, systemPrompt?: string, permissionMode?:
     const resolvedModel = model ?? DEFAULT_MODEL;
 
     const { waitUntilExit } = render(
-        React.createElement(App, { model: resolvedModel, systemPrompt: systemPrompt ?? SYSTEM_PROMPT, permissionMode }), { exitOnCtrlC: false }
+        React.createElement(App, { model: resolvedModel, systemPrompt: systemPrompt ?? SYSTEM_PROMPT, permissionMode, shouldResume, resumeSessionId }), { exitOnCtrlC: false }
     );
     await waitUntilExit();
 
@@ -52,6 +52,7 @@ Options:
   -v, --version               Print version and exit
   -h, --help                  Show this help message
   --model <model>             Override the LLM model
+  --resume [session-id]       Resume the latest or a specific session
   --plan                      Start in plan mode (read-only tools only)
   --auto                      Start in auto mode (allow all tools)
   --permission-mode <mode>    Permission mode: default | plan | auto
@@ -75,6 +76,15 @@ Commands (in REPL):
     // 解析 --dump-system-prompt 参数
     const dumpSystemPrompt = process.argv.includes("--dump-system-prompt");
 
+    // 解析 --resume 参数
+    const resumeIndex = process.argv.indexOf("--resume");
+    const resumeValue = resumeIndex !== -1 ? process.argv[resumeIndex + 1]: undefined;
+    const resumeSessionId = 
+        resumeIndex !== -1 && resumeValue && !resumeValue.startsWith("--")
+        ? resumeValue
+        : null;
+    const shouldResume = resumeIndex !== -1;
+
     if (dumpSystemPrompt) {
         // 构建系统提示词
         const cwd = process.cwd();
@@ -88,10 +98,10 @@ Commands (in REPL):
     const cwd = process.cwd();
     const systemParts = await buildSystemPrompt({ cwd });
     const systemPrompt = renderSystemPrompt(systemParts);
-    await renderCli(model, systemPrompt, permissionMode);
+    await renderCli(model, systemPrompt, permissionMode, shouldResume, resumeSessionId);
 }
 
 main().catch((err) => {
-  console.error(`Fatal: ${err.message}`);
-  process.exit(1);
+    console.error(`Fatal: ${err.message}`);
+    process.exit(1);
 });

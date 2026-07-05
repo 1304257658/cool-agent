@@ -16,6 +16,7 @@ import type { Usage } from "../types/message.js";
 
 import { buildSystemPrompt, renderSystemPrompt } from "../context/systemPrompt.js";
 import { getToolsApiParams } from "../tools/index.js";
+import { formatProjectSessionHistory } from "../session/history.js";
 
 export type QueryEngineEvent = 
     | AgenticLoopEvent
@@ -50,6 +51,8 @@ export interface QueryEngineOptions {
     permissionSettings?: PermissionSettings;
     sessionPermissionRules?: PermissionRuleSet;
     onPermissionRequest?: (request: PermissionRequest) => Promise<PermissionDecision>;
+    initialMessages?: MessageParam[];
+    initialUsage?: Usage;
 }
 
 export interface QueryEngineState {
@@ -69,8 +72,8 @@ function createEmptyUsage(): Usage {
 
 
 export class QueryEngine {
-    private messages: MessageParam[] = [];
-    private totalUsage: Usage = createEmptyUsage();
+    private messages: MessageParam[];
+    private totalUsage: Usage;
     private readonly defaultModel: string;
     private sessionModelOverride: string | null = null;
     private readonly toolContext: ToolContext;
@@ -87,6 +90,8 @@ export class QueryEngine {
         this.permissionSettings = options.permissionSettings;
         this.sessionPermissionRules = options.sessionPermissionRules;
         this.onPermissionRequest = options.onPermissionRequest;
+        this.messages = [...(options.initialMessages ?? [])];
+        this.totalUsage = {...options.initialUsage ?? createEmptyUsage()};
     }
 
     private getActiveModel(): string {
@@ -231,7 +236,7 @@ export class QueryEngine {
                 yield {
                     type: "command",
                     kind: "info",
-                    message: `${this.messages.length} messages in conversation.`,
+                    message: await formatProjectSessionHistory(this.toolContext.cwd),
                 };
                 return {
                     handled: true,
