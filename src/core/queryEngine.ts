@@ -219,14 +219,14 @@ export class QueryEngine {
                     source: "session",
                 };
                 yield {
-                type: "command",
-                kind: "info",
-                message: [
-                    "Model updated",
-                    `- Active model: ${nextModel}`,
-                    "- Source: session",
-                    `- Default model remains: ${this.defaultModel}`,
-                ].join("\n"),
+                    type: "command",
+                    kind: "info",
+                    message: [
+                        "Model updated",
+                        `- Active model: ${nextModel}`,
+                        "- Source: session",
+                        `- Default model remains: ${this.defaultModel}`,
+                    ].join("\n"),
                 };
 
                 return {

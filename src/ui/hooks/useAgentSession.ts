@@ -15,6 +15,10 @@ import {
     createSessionId,
     initSessionStorage,
     restoreSession,
+    isEmptyMessageSession,
+    deleteSession,
+    getLatestSessionId,
+    type SessionPaths,
 } from "../../session/storage.js"
 // 本地类型定义：工具调用信息和 token 用量汇总
 import type {
@@ -143,6 +147,8 @@ export function useAgentSession({
     const sessionRulesRef = useRef<PermissionRuleSet | null>({ allow: [], deny: [] });
     const engineRef = useRef<QueryEngine | null>(null);
     const sessionIdRef = useRef<string>(createSessionId());
+    const latestSessionRef = useRef<string>("");
+    const sessionPathRef = useRef<string>("");
 
     const toolContext = useMemo<ToolContext>(() => ({
         cwd: process.cwd(),
@@ -169,10 +175,12 @@ export function useAgentSession({
             try {
                 let initialMessages: MessageParam[] = [];
                 let initialUsage = { input_tokens: 0, output_tokens: 0 };
+                latestSessionRef.current = await getLatestSessionId(toolContext.cwd);
                 if (shouldResume) {
                     const restored = await restoreSession(toolContext.cwd, resumeSessionId ?? undefined);
                     if (cancelled) return;
                     sessionIdRef.current = restored.summary.sessionId;
+                    sessionPathRef.current = restored.path;
 
                     initialMessages = restored.messages;
                     initialUsage = restored.summary.totalUsage;
@@ -188,14 +196,22 @@ export function useAgentSession({
                         body: `Resumed session ${sessionIdRef.current} with ${restored.summary.messageCount} messages.`
                     });
                 } else {
-                    const startedAt = new Date().toISOString();
-                    await initSessionStorage({
+                    const startedAt = process.env.TIMEZONE
+                    // sv-SE 可以完美输出类似于 ISO 的 YYYY-MM-DD HH:mm:ss 格式
+                    ? new Intl.DateTimeFormat("sv-SE", { 
+                        timeZone: process.env.TIMEZONE,
+                        year: "numeric", month: "2-digit", day: "2-digit",
+                        hour: "2-digit", minute: "2-digit", second: "2-digit",
+                    // 把中间的空格换成 T，向 ISO 看齐
+                    }).format(new Date()).replace(" ", "T") 
+                    : new Date().toISOString();
+                    const { transcriptPath } = await initSessionStorage({
                         sessionId: sessionIdRef.current,
                         model: model,
                         cwd: toolContext.cwd,
                         startedAt: startedAt,
-                        updatedAt: startedAt,
                     });
+                    sessionPathRef.current = transcriptPath;
                 }
 
                 engineRef.current = new QueryEngine({
@@ -303,6 +319,14 @@ export function useAgentSession({
 
             // Slash commands 本地拦截
             if (trimmed === "/exit" || trimmed === "/quit" || trimmed === "/bye") {
+                setSystemNotice({
+                    tone: "info",
+                    title: "Exiting",
+                    body: `${sessionPathRef.current} - ${latestSessionRef.current}`,
+                });
+                if (await isEmptyMessageSession(sessionPathRef.current ?? "") && latestSessionRef.current) {
+                    await deleteSession(sessionPathRef.current ?? "", latestSessionRef.current);
+                }
                 onExit();
                 return {
                     handled: true

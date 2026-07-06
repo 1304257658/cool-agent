@@ -16,11 +16,11 @@ export async function formatProjectSessionHistory(cwd: string): Promise<string> 
     for (const session of sessions) {
         lines.push([
             `- ${session.sessionId}`,
-            `  Updated: ${session.updatedAt}`,
             `  Started: ${session.startedAt}`,
+            `  Updated: ${session.updatedAt}`,
             `  Messages: ${session.messageCount}`,
             `  Usage: ${formatSessionUsage(session)}`,
-            `  Model: ${session.model}`,
+            `  Model: ${session.model}\n`,
         ].join("\n"));
     }
     return lines.join("\n");

@@ -99,7 +99,7 @@ export function usePromptInput({
         return [];
     };
 
-    const keyword = inputValue.trim().toLowerCase();
+    const keyword = inputValue.trim().slice(1).toLowerCase();
     return ALL_COMMANDS.filter((command) => command.name.includes(keyword)).slice(0, 6);
   }, [inputValue]);
 

@@ -78,7 +78,7 @@ Commands (in REPL):
 
     // 解析 --resume 参数
     const resumeIndex = process.argv.indexOf("--resume");
-    const resumeValue = resumeIndex !== -1 ? process.argv[resumeIndex + 1]: undefined;
+    const resumeValue = resumeIndex !== -1 ? process.argv[resumeIndex + 1] : undefined;
     const resumeSessionId = 
         resumeIndex !== -1 && resumeValue && !resumeValue.startsWith("--")
         ? resumeValue
@@ -98,7 +98,7 @@ Commands (in REPL):
     const cwd = process.cwd();
     const systemParts = await buildSystemPrompt({ cwd });
     const systemPrompt = renderSystemPrompt(systemParts);
-    await renderCli(model, systemPrompt, permissionMode, shouldResume, resumeSessionId);
+    await renderCli(model, systemPrompt, permissionMode, shouldResume, resumeSessionId ?? undefined);
 }
 
 main().catch((err) => {

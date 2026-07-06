@@ -54,10 +54,10 @@ export interface SessionMetadata {
     model: string;
     cwd: string;
     startedAt: string;
-    updatedAt: string;
 }
 
 export interface SessionSummary extends SessionMetadata {
+    updatedAt: string;
     messageCount: number;
     totalUsage: Usage;
 }
@@ -72,6 +72,7 @@ export interface SessionPaths {
 export interface RestoredSession {
   summary: SessionSummary;
   messages: MessageParam[];
+  path: string;
 }
 
 
@@ -79,12 +80,35 @@ export function createSessionId(): string {
     return crypto.randomUUID();
 }
 
+
+export async function isEmptyMessageSession(sessionFilePath: string): Promise<boolean> {
+    if (!sessionFilePath) return true;
+    const entries = await readTranscriptEntries(sessionFilePath);
+    if (entries.length === 0) {
+        return true;
+    }
+
+    const messages = entries
+      .filter((entry): entry is TranscriptEntry & { type: "message" } => entry.type === "message")
+      .map((entry) => entry.message);
+    return messages.length === 0;
+}
+
+
+export async function deleteSession(sessionFilePath: string, latestSession: string): Promise<void> {
+    // 删除最后一个 / 后的内容
+    const latestSessionPath = path.join(path.dirname(sessionFilePath), "latest");
+    await fs.unlink(sessionFilePath);
+    await fs.writeFile(latestSessionPath, `${latestSession}\n`, "utf-8");
+}
+
+
 function getProjectHash(cwd: string): string {
     return crypto.createHash("sha256").update(path.resolve(cwd)).digest("hex").slice(0, 16);
 }
 
 function getSessionPaths(cwd: string, sessionId: string): SessionPaths {
-    const projectSessionDir = path.join(AGENT_PROJECTS_DIR, getProjectHash(cwd), sessionId);
+    const projectSessionDir = path.join(AGENT_PROJECTS_DIR, getProjectHash(cwd));
     return {
         rootDir: COOL_AGENT_HOME,
         projectSessionDir,
@@ -97,14 +121,22 @@ async function ensureSessionDir(paths: SessionPaths): Promise<void> {
     await fs.mkdir(paths.projectSessionDir, { recursive: true });
 }
 
-async function readTranscriptEntries(filePath: string): Promise<TranscriptEntry[]> {
-    const raw = await fs.readFile(filePath, "utf-8");
-    return raw
-      .split(/\r?\n/)
-      .map((line) => line.trim())
-      .filter(Boolean)
-      .map(parseJsonLine)
-      .filter((entry): entry is TranscriptEntry => entry !== null);
+async function readTranscriptEntries(sessionFilePath: string): Promise<TranscriptEntry[]> {
+    try{
+        const raw = await fs.readFile(sessionFilePath, "utf-8");
+        return raw
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter(Boolean)
+        .map(parseJsonLine)
+        .filter((entry): entry is TranscriptEntry => entry !== null);
+    } catch (error: unknown) {
+        const err = error as NodeJS.ErrnoException;
+        if (err.code === "ENOENT") {
+            return [];
+        }
+        throw error;
+    }
 }
 
 function getLatestUsage(entries: TranscriptEntry[]): TranscriptEntry & { type: "usage" } | null {
@@ -145,14 +177,14 @@ export async function appendTranscriptEntry(
 }
 
 
-export async function getLatestSessionId(cwd: string): Promise<string | null> {
+export async function getLatestSessionId(cwd: string): Promise<string> {
     const { latestPath } = getSessionPaths(cwd, "placeholder");
     try {
         const value = (await fs.readFile(latestPath, "utf-8")).trim();
-        return value || null;
+        return value || "";
     } catch (error: unknown) {
         const err = error as NodeJS.ErrnoException;
-        if (err?.code === "ENOENT") return null;
+        if (err?.code === "ENOENT") return "";
         throw error;
     }
 }
@@ -194,6 +226,7 @@ export async function restoreSession(cwd: string, sessionId?: string): Promise<R
             totalUsage: latestUsage?.total || createEmptyUsage(),
         },
         messages: messages,
+        path: transcriptPath,
     };
 }
 
@@ -337,8 +370,8 @@ export async function listProjectSessions(cwd: string, limit = MAX_SESSIONS): Pr
       .map((entry) => path.join(projectSessionDir, entry.name));
 
     const sessions = await Promise.all(
-        sessionFiles.map(async (filePath) => {
-            const transcriptEntries = await readTranscriptEntries(filePath);
+        sessionFiles.map(async (sessionFilePath) => {
+            const transcriptEntries = await readTranscriptEntries(sessionFilePath);
             const meta = transcriptEntries.find((entry): entry is Extract<TranscriptEntry, { type: "session_meta" }> => entry.type === "session_meta");
             if (!meta) return null;
 
@@ -355,7 +388,7 @@ export async function listProjectSessions(cwd: string, limit = MAX_SESSIONS): Pr
                 totalUsage: latestUsage?.total ?? createEmptyUsage(),
             } satisfies SessionSummary;
         })
-    )
+    );
 
     return sessions
       .filter((session): session is SessionSummary => session !== null)

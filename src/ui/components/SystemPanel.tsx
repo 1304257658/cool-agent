@@ -16,7 +16,7 @@ export function SystemPanel({ notice }: SystemPanelProps): React.ReactNode {
 
   return (
     <Box marginTop={0} flexDirection="column" borderStyle="round" borderColor={color} paddingX={1}>
-      <Text color={color}>{icon} {notice.title}</Text>
+      <Text color={color}>{icon}  {notice.title}</Text>
       {notice.body.split("\n").map((line, index) => (
         <Text key={index} dimColor>{line}</Text>
       ))}
