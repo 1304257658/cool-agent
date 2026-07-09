@@ -284,8 +284,10 @@ export class QueryEngine {
         this.abortController = abortController;
 
         try {
+            const latestUserText = typeof userMessage.content === "string" ? userMessage.content : trimmed;
             const systemParts = await buildSystemPrompt({
                 cwd: this.toolContext.cwd,
+                userQuery: latestUserText,
             });
             const systemPrompt = renderSystemPrompt(systemParts);
             const tools = getToolsApiParams();

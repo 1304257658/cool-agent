@@ -3,6 +3,11 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 
 
+export const AGENT_HOME = process.env.HOME || process.env.USERPROFILE || "~";
+export const AGENT_PROJECTS_DIR = path.join(AGENT_HOME, "projects");
+export const MEMORY_ENTRYPOINT = "MEMORY.md";
+
+
 interface ClaudeConfig {
     env?: Record<string, string>;
 }
@@ -28,7 +33,7 @@ export function loadEnv() {
     Object.assign(process.env, globalConfigEnv);
 
     // 2. ~/.cool-agent/settings.json (highest priority)
-    const settingsEnv = readJsonEnv(path.join(home, ".cool-agent/settings.json"));
+    const settingsEnv = readJsonEnv(path.join(home, "settings.json"));
     Object.assign(process.env, settingsEnv);
     
     // 3. .env file (highest priority — project-local overrides everything)
