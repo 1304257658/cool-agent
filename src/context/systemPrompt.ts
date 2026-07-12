@@ -117,7 +117,7 @@ export async function buildSystemPrompt(options: BuildSystemPromptOptions): Prom
         ...buildMemoryPromptInstructions(memoryDir),
         buildMemoryValidationGuidance(),
         ignoreMemory ? "Memory is disabled for this turn because the user asked not to use it." : "",
-        memoryEntrypoint ? `Memory index (${memoryDir}/MEMORY.md):\n${memoryEntrypoint}` : "",
+        memoryEntrypoint ? `Memory index:\n${memoryEntrypoint}` : "",
         relevantMemories.length > 0 ? `Relevant memories:\n${relevantMemories.join("\n\n---\n\n")}` : "",
     ].filter(Boolean);
 
