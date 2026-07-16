@@ -2,7 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 
 export const DEFAULT_MODEL = process.env.ANTHROPIC_MODEL || "sonnet-4.6";
 export const SYSTEM_PROMPT = process.env.ANTHROPIC_SYSTEM_PROMPT || "You are a helpful AI coding assistant. Be concise and direct.";
-export const DEAFULT_MAX_TOKENS = Number(process.env.DEFAULT_MAX_TOKENS) || 8096;
+export const DEFAULT_MAX_TOKENS = Number(process.env.DEFAULT_MAX_TOKENS) || 8096;
 
 let clientInstance: Anthropic | null = null;
 

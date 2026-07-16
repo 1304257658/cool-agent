@@ -3,7 +3,7 @@ import type { MessageParam } from "@anthropic-ai/sdk/resources/messages.js";
 import {
     getAnthropicClient,
     DEFAULT_MODEL,
-    DEAFULT_MAX_TOKENS,
+    DEFAULT_MAX_TOKENS,
 } from './anthropicClient.js';
 import {
     ThinkingBlock,
@@ -13,6 +13,8 @@ import {
     StreamEvent,
     AssistantMessage,
 } from '../../types/message.js';
+import { createEmptyUsage } from '../../utils/usage.js';
+
 
 
 // ─── Request Parameters ────────────────────────────────────────────
@@ -40,7 +42,7 @@ export async function* streamMessage(
 ): AsyncGenerator<StreamEvent, StreamResult> {
     const client = getAnthropicClient();
     const model = params.model ?? DEFAULT_MODEL;
-    const maxTokens = params.maxTokens ?? DEAFULT_MAX_TOKENS;
+    const maxTokens = params.maxTokens ?? DEFAULT_MAX_TOKENS;
 
     // Build the API request
     const requestParams: Anthropic.MessageCreateParamsStreaming = {
@@ -59,10 +61,7 @@ export async function* streamMessage(
 
     const contentBlocks: ContentBlock[] = [];
     let currentToolInputJson = "";
-    const usage: Usage = {
-        input_tokens: 0,
-        output_tokens: 0
-    };
+    const usage: Usage = createEmptyUsage();
     let stopReason = "";
 
     for await (const event of stream) {
@@ -84,14 +83,26 @@ export async function* streamMessage(
         // }
 
         switch (event.type) {
-            case "message_start":
-                usage.input_tokens = event.message.usage.input_tokens;
+            case "message_start": {
+                // Capture initial usage (input token count + cache tokens)
+                if (event.message.usage) {
+                    usage.input_tokens = event.message.usage.input_tokens;
+                    usage.output_tokens = event.message.usage.output_tokens;
+                    const u = event.message.usage as unknown as Record<string, unknown>;
+                    if (typeof u.cache_creation_input_tokens === "number") {
+                        usage.cache_creation_input_tokens = u.cache_creation_input_tokens;
+                    }
+                    if (typeof u.cache_read_input_tokens === "number") {
+                        usage.cache_read_input_tokens = u.cache_read_input_tokens;
+                    }
+                }
                 yield {
                     type: "message_start",
                     messageId: event.message.id
                 };
                 break;
-            
+            }
+
             case "content_block_start":
                 if (event.content_block.type === "thinking") {
                     contentBlocks[event.index] = {
@@ -147,10 +158,25 @@ export async function* streamMessage(
                 }
                 break;
 
-            case "message_delta":
-                usage.output_tokens = event.usage.output_tokens;
+            case "message_delta": {
+                if (event.usage) {
+                    usage.output_tokens = event.usage.output_tokens;
+                    // Some providers (e.g. MiniMax) report input_tokens in message_delta
+                    // rather than message_start — pick it up as a fallback.
+                    const du = event.usage as unknown as Record<string, unknown>;
+                    if (typeof du.input_tokens === "number" && du.input_tokens > 0) {
+                        usage.input_tokens = du.input_tokens;
+                    }
+                    if (typeof du.cache_creation_input_tokens === "number") {
+                        usage.cache_creation_input_tokens = du.cache_creation_input_tokens;
+                    }
+                    if (typeof du.cache_read_input_tokens === "number") {
+                        usage.cache_read_input_tokens = du.cache_read_input_tokens;
+                    }
+                }
                 stopReason = event.delta.stop_reason ?? "";
                 break;
+            }
 
             case "message_stop":
                 yield {
@@ -168,5 +194,63 @@ export async function* streamMessage(
         },
         usage,
         stopReason,
+    };
+}
+
+
+// ─── Convenience: Non-streaming single-shot ────────────────────────
+
+/**
+ * Simple non-streaming call for quick one-off requests.
+ * Useful for internal tasks (compaction, classification) where
+ * we don't need incremental output.
+ */
+
+export async function createMessage(
+    params: Omit<StreamRequestParams, "signal">,
+): Promise<{
+    content: ContentBlock[];
+    usage: Usage;
+    stopReason: string;
+}> {
+    const client = getAnthropicClient();
+    const model = params.model ?? DEFAULT_MODEL;
+    const maxTokens = params.maxTokens ?? DEFAULT_MAX_TOKENS;
+
+    const response = await client.messages.create({
+        model,
+        max_tokens: maxTokens,
+        messages: params.messages,
+        ...(params.system && { system: params.system }),
+        ...(params.tools && params.tools.length > 0 && { tools: params.tools }),
+    });
+
+    const contentBlocks: ContentBlock[] = response.content.map((block) => {
+        if (block.type === "text") {
+            return {
+                type: "text" as const,
+                text: block.text,
+            };
+        } else if (block.type === "tool_use") {
+            return {
+                type: "tool_use" as const,
+                id: block.id,
+                name: block.name,
+                input: block.input as Record<string, unknown>,
+            };
+        }
+        return {
+            type: "text" as const,
+            text: "",
+        };
+    });
+
+    return {
+        content: contentBlocks,
+        usage: {
+            input_tokens: response.usage.input_tokens,
+            output_tokens: response.usage.output_tokens,
+        },
+        stopReason: response.stop_reason ?? "",
     };
 }

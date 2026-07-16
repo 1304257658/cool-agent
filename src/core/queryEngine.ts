@@ -1,4 +1,5 @@
 import type { MessageParam } from "@anthropic-ai/sdk/resources/messages.js";
+
 import {
   query,
   type AgenticLoopEvent,
@@ -13,10 +14,13 @@ import {
 } from "../permissions/permissions.js";
 import type { ToolContext } from "../tools/Tool.js";
 import type { Usage } from "../types/message.js";
-
+import { createEmptyUsage } from "../utils/usage.js";
+import { compactMessages } from "../context/compaction.js"
+import { buildTokenBudgetSnapshot } from "../utils/tokens.js";
 import { buildSystemPrompt, renderSystemPrompt } from "../context/systemPrompt.js";
 import { getToolsApiParams } from "../tools/index.js";
 import { formatProjectSessionHistory } from "../session/history.js";
+
 
 export type QueryEngineEvent = 
     | AgenticLoopEvent
@@ -25,9 +29,15 @@ export type QueryEngineEvent =
         messages: MessageParam[];
     }
     | {
+        type: "compacted";
+        summary?: string;
+        trigger: "auto" | "manual" | "micro"
+    }
+    | {
         type: "usage_updated";
         totalUsage: Usage;
         turnUsage: Usage;
+        lastCallUsage: Usage;
     }
     | {
         type: "command";
@@ -63,14 +73,6 @@ export interface QueryEngineState {
 }
 
 
-function createEmptyUsage(): Usage {
-    return {
-        input_tokens: 0,
-        output_tokens: 0,
-    }
-}
-
-
 export class QueryEngine {
     private messages: MessageParam[];
     private totalUsage: Usage;
@@ -82,6 +84,8 @@ export class QueryEngine {
     private readonly sessionPermissionRules?: PermissionRuleSet;
     private readonly onPermissionRequest?: (request: PermissionRequest) => Promise<PermissionDecision>;
     private abortController: AbortController | null = null;
+    private usageAnchorIndex: number = -1;
+    private lastCallUsage: Usage = createEmptyUsage();
 
     constructor(options: QueryEngineOptions) {
         this.defaultModel = options.model;
@@ -92,6 +96,7 @@ export class QueryEngine {
         this.onPermissionRequest = options.onPermissionRequest;
         this.messages = [...(options.initialMessages ?? [])];
         this.totalUsage = {...options.initialUsage ?? createEmptyUsage()};
+        this.usageAnchorIndex = this.messages.length > 0 ? this.messages.length - 1 : -1;
     }
 
     private getActiveModel(): string {
@@ -241,6 +246,41 @@ export class QueryEngine {
                 return {
                     handled: true,
                 };
+            case "compact": {
+                const focus = args.join(" ").trim();
+                const manualSystemParts = await buildSystemPrompt({
+                    cwd: this.toolContext.cwd,
+                });
+                const manualSystemPrompt = renderSystemPrompt(manualSystemParts);
+                const result = await compactMessages(this.messages, focus || undefined, {
+                    usage: this.lastCallUsage,
+                    usageAnchorIndex: this.usageAnchorIndex,
+                    systemPrompt: manualSystemPrompt,
+                    force: true,
+                });
+                this.messages = [...result.messages];
+                yield {
+                    type: "messages_updated",
+                    messages: [...this.messages]
+                };
+                yield {
+                    type: "compacted",
+                    summary: result.summary,
+                    trigger: focus ? "manual" : result.didCompact ? "manual" : "micro",
+                };
+                yield {
+                    type: "command",
+                    kind: "info",
+                    message: result.didCompact
+                      ? `Conversation compacted.${focus ? ` Focus: ${focus}` : ""}`
+                      : result.didMicroCompact
+                        ? "Old tool results were micro-compacted."
+                        : "Conversation did not been compaction.",
+                };
+                return {
+                    handled: true,
+                };
+            }
             default:
                 yield {
                     type: "command",
@@ -270,6 +310,30 @@ export class QueryEngine {
             return yield* this.handleCommand(trimmed);
         }
 
+        const previewSystemParts = await buildSystemPrompt({
+            cwd: this.toolContext.cwd,
+            userQuery: trimmed,
+        });
+        const previewSystemPrompt = renderSystemPrompt(previewSystemParts);
+
+        const compacted = await compactMessages(this.messages, undefined, {
+            usage: this.lastCallUsage,
+            usageAnchorIndex: this.usageAnchorIndex,
+            systemPrompt: previewSystemPrompt,
+        });
+        if (compacted.didMicroCompact || compacted.didCompact) {
+            this.messages = [...compacted.messages];
+            yield {
+                type: "messages_updated",
+                messages: [...this.messages]
+            };
+            yield {
+                type: "compacted",
+                summary: compacted.summary,
+                trigger: compacted.didCompact ? "auto" : "micro",
+            };
+        }
+
         const userMessage: MessageParam = {
             role: "user",
             content: trimmed,
@@ -285,10 +349,7 @@ export class QueryEngine {
 
         try {
             const latestUserText = typeof userMessage.content === "string" ? userMessage.content : trimmed;
-            const systemParts = await buildSystemPrompt({
-                cwd: this.toolContext.cwd,
-                userQuery: latestUserText,
-            });
+            const systemParts = previewSystemParts;
             const systemPrompt = renderSystemPrompt(systemParts);
             const tools = getToolsApiParams();
 
@@ -313,6 +374,8 @@ export class QueryEngine {
                     this.totalUsage = {
                         input_tokens: this.totalUsage.input_tokens + value.usage.input_tokens,
                         output_tokens: this.totalUsage.output_tokens + value.usage.output_tokens,
+                        cache_creation_input_tokens: (this.totalUsage.cache_creation_input_tokens ?? 0) + (value.usage.cache_creation_input_tokens ?? 0),
+                        cache_read_input_tokens: (this.totalUsage.cache_read_input_tokens ?? 0) + (value.usage.cache_read_input_tokens ?? 0),
                     };
                     yield {
                         type: "messages_updated",
@@ -322,6 +385,7 @@ export class QueryEngine {
                         type: "usage_updated",
                         totalUsage: { ...this.totalUsage },
                         turnUsage: { ...value.usage },
+                        lastCallUsage: { ...this.lastCallUsage },
                     };
                     return {
                         handled: true,

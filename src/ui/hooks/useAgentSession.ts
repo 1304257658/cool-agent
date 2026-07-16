@@ -2,6 +2,10 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 // Anthropic Messages API 的类型定义
 import type { MessageParam } from "@anthropic-ai/sdk/resources/messages.js";
+
+import { getTimestamp } from '../../utils/loadEnv.js';
+import { buildTokenBudgetSnapshot } from "../../utils/tokens.js";
+import { createEmptyUsage } from "../../utils/usage.js";
 import {
   loadPermissionSettings,
   type PermissionDecision,
@@ -11,6 +15,7 @@ import {
   type PermissionSettings,
 } from "../../permissions/permissions.js";
 import {
+    appendCompactionSnapshot,
     appendTranscriptEntry,
     createSessionId,
     initSessionStorage,
@@ -18,7 +23,6 @@ import {
     isEmptyMessageSession,
     deleteSession,
     getLatestSessionId,
-    type SessionPaths,
 } from "../../session/storage.js"
 // 本地类型定义：工具调用信息和 token 用量汇总
 import type {
@@ -174,7 +178,7 @@ export function useAgentSession({
         const initialize = async () => {
             try {
                 let initialMessages: MessageParam[] = [];
-                let initialUsage = { input_tokens: 0, output_tokens: 0 };
+                let initialUsage = createEmptyUsage();
                 latestSessionRef.current = await getLatestSessionId(toolContext.cwd);
                 if (shouldResume) {
                     const restored = await restoreSession(toolContext.cwd, resumeSessionId ?? undefined);
@@ -196,15 +200,7 @@ export function useAgentSession({
                         body: `Resumed session ${sessionIdRef.current} with ${restored.summary.messageCount} messages.`
                     });
                 } else {
-                    const startedAt = process.env.TIMEZONE
-                    // sv-SE 可以完美输出类似于 ISO 的 YYYY-MM-DD HH:mm:ss 格式
-                    ? new Intl.DateTimeFormat("sv-SE", { 
-                        timeZone: process.env.TIMEZONE,
-                        year: "numeric", month: "2-digit", day: "2-digit",
-                        hour: "2-digit", minute: "2-digit", second: "2-digit",
-                    // 把中间的空格换成 T，向 ISO 看齐
-                    }).format(new Date()).replace(" ", "T") 
-                    : new Date().toISOString();
+                    const startedAt = getTimestamp();
                     const { transcriptPath } = await initSessionStorage({
                         sessionId: sessionIdRef.current,
                         model: model,
@@ -352,7 +348,7 @@ export function useAgentSession({
                 setLastUsage(null);
                 await appendTranscriptEntry(toolContext.cwd, sessionIdRef.current, {
                     type: "message",
-                    timestamp: new Date().toISOString(),
+                    timestamp: getTimestamp(),
                     role: "user",
                     message: {
                         role: "user",
@@ -361,8 +357,9 @@ export function useAgentSession({
                 });
             }
             setPermissionPrompt(null);
-            setIsLoading(!isSlashCommand);
-            setSpinnerLabel("Thinking");
+            const needsLoading = !isSlashCommand || trimmed.startsWith("/compact");
+            setIsLoading(needsLoading);
+            setSpinnerLabel(trimmed.startsWith("/compact") ? "Compacting conversation" : "Thinking");
 
             try {
                 const run = engineRef.current.submitMessage(trimmed);
@@ -399,7 +396,7 @@ export function useAgentSession({
                             }]);
                             await appendTranscriptEntry(toolContext.cwd, sessionIdRef.current, {
                                 type: "tool_event",
-                                timestamp: new Date().toISOString(),
+                                timestamp: getTimestamp(),
                                 name: value.name,
                                 // arguments: value.request.arguments,
                                 phase: "start",
@@ -424,7 +421,7 @@ export function useAgentSession({
                             );
                             await appendTranscriptEntry(toolContext.cwd, sessionIdRef.current, {
                                 type: "tool_event",
-                                timestamp: new Date().toISOString(),
+                                timestamp: getTimestamp(),
                                 name: value.name,
                                 // arguments: value.request.arguments,
                                 phase: "done",
@@ -436,29 +433,51 @@ export function useAgentSession({
                             setStreamingText("");
                             await appendTranscriptEntry(toolContext.cwd, sessionIdRef.current, {
                                 type: "message",
-                                timestamp: new Date().toISOString(),
+                                timestamp: getTimestamp(),
                                 role: "assistant",
                                 message: value.message,
                             });
                             break;
                         case "tool_result_message":
                             setSpinnerLabel("Thinking");
+                            setPermissionPrompt(null);
+                            await appendTranscriptEntry(toolContext.cwd, sessionIdRef.current, {
+                                type: "message",
+                                timestamp: getTimestamp(),
+                                role: "user",
+                                message: value.message,
+                            });
                             break;
                         case "messages_updated":
                             setMessages(value.messages);
                             break;
                         case "usage_updated":
-                            setLastUsage({
-                                input: value.turnUsage.input_tokens,
-                                output: value.turnUsage.output_tokens,
-                            });
-                            setTotalUsage({
-                                input: value.totalUsage.input_tokens,
-                                output: value.totalUsage.output_tokens,
-                            });
+                            {
+                                const engineMessages = engineRef.current?.getState().messages ?? [];
+                                const usageAnchorIndex = engineMessages.length > 0 ? engineMessages.length - 1 : -1;
+                                const snapshot = buildTokenBudgetSnapshot(engineMessages, {
+                                    usage: value.lastCallUsage,
+                                    usageAnchorIndex: usageAnchorIndex,
+                                });
+                                const contextPercent = Math.round((snapshot.estimatedConversationTokens / snapshot.contextWindow) * 100);
+                                const turnInput = value.turnUsage.input_tokens + (value.turnUsage.cache_creation_input_tokens ?? 0) + (value.turnUsage.cache_read_input_tokens ?? 0);
+                                const totalInput = value.totalUsage.input_tokens + (value.totalUsage.cache_creation_input_tokens ?? 0) + (value.totalUsage.cache_read_input_tokens ?? 0);
+                                setLastUsage({
+                                    input: turnInput,
+                                    output: value.turnUsage.output_tokens,
+                                    contextTokens: snapshot.estimatedConversationTokens,
+                                    contextPercent,
+                                });
+                                setTotalUsage({
+                                    input: totalInput,
+                                    output: value.totalUsage.output_tokens,
+                                    contextTokens: snapshot.estimatedConversationTokens,
+                                    contextPercent,
+                                });
+                            }
                             await appendTranscriptEntry(toolContext.cwd, sessionIdRef.current, {
                                 type: "usage",
-                                timestamp: new Date().toISOString(),
+                                timestamp: getTimestamp(),
                                 turn: value.turnUsage,
                                 total: value.totalUsage,
                             });
@@ -470,10 +489,33 @@ export function useAgentSession({
                             ));
                             await appendTranscriptEntry(toolContext.cwd, sessionIdRef.current, {
                                 type: "system",
-                                timestamp: new Date().toISOString(),
+                                timestamp: getTimestamp(),
                                 level: value.kind,
                                 message: value.message,
                             });
+                            break;
+                        case "compacted":
+                            setSystemNotice({
+                                tone: "info",
+                                title: value.trigger === "micro" ? "Context micro-compacted" : "Conversation compacted",
+                                body: value.summary ?? (value.trigger === "micro" ? "Old tool results were cleared to save context space." : "Conversation summary created."),
+                            });
+                            if (value.trigger !== "micro") {
+                                const compactedMessages = engineRef.current?.getState().messages ?? [];
+                                await appendCompactionSnapshot(
+                                    toolContext.cwd,
+                                    sessionIdRef.current,
+                                    value.trigger as "auto" | "manual",
+                                    compactedMessages,
+                                );
+                            } else {
+                                await appendTranscriptEntry(toolContext.cwd, sessionIdRef.current, {
+                                    type: "system",
+                                    timestamp: getTimestamp(),
+                                    level: "info",
+                                    message: `compaction: ${value.trigger}`,
+                                });
+                            }
                             break;
                         case "model_changed":
                             setCurrentModel(value.model);
@@ -501,7 +543,7 @@ export function useAgentSession({
                             });
                             await appendTranscriptEntry(toolContext.cwd, sessionIdRef.current, {
                                 type: "system",
-                                timestamp: new Date().toISOString(),
+                                timestamp: getTimestamp(),
                                 level: "error",
                                 message: value.error.message,
                             });

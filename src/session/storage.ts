@@ -1,13 +1,13 @@
 import * as crypto from "node:crypto";
 import * as path from "path";
-import * as os from "node:os";
 import * as fs from "node:fs/promises";
 import type { Dirent } from "node:fs";
 import { MessageParam } from "@anthropic-ai/sdk/resources";
 
-import { AGENT_HOME, AGENT_PROJECTS_DIR } from "../utils/loadEnv.js";
+import { AGENT_HOME, getTimestamp } from "../utils/loadEnv.js";
 import { getProjectPathInfo } from "../utils/getProjectPathInfo.js";
 import { Usage } from "../types/message.js";
+import { createEmptyUsage } from "../utils/usage.js";
 
 
 const MAX_SESSIONS = 20;
@@ -47,6 +47,11 @@ export type TranscriptEntry =
         timestamp: string;
         level: "info" | "error";
         message: string;
+    }
+    | {
+        type: "compaction";
+        timestamp: string;
+        trigger: "auto" | "manual";
     };
 
 export interface SessionMetadata {
@@ -204,7 +209,17 @@ export async function restoreSession(cwd: string, sessionId?: string): Promise<R
         throw new Error(`Session ${resolvedSessionId} is missing session metadata entry.`);
     }
 
+    // Find the last compaction marker; only use messages after it
+    let startIndex = 0;
+    for (let i = entries.length - 1; i >= 0; i--) {
+        if (entries[i]!.type === "compaction") {
+            startIndex = i + 1;
+            break;
+        }
+    }
+
     const messages = entries
+      .slice(startIndex)
       .filter((entry): entry is TranscriptEntry & { type: "message" } => entry.type === "message")
       .map((entry) => entry.message);
     if (messages.length === 0) {
@@ -331,6 +346,20 @@ function parseJsonLine(line: string): TranscriptEntry | null {
             }
             return null;
         }
+
+        if (parsed.type === "compaction") {
+            if (
+                typeof parsed.timestamp === "string" &&
+                (parsed.trigger === "auto" || parsed.trigger === "manual")
+            ) {
+                return {
+                    type: "compaction",
+                    timestamp: parsed.timestamp,
+                    trigger: parsed.trigger,
+                };
+            }
+            return null;
+        }
         return null;
     } catch (error: unknown) {
         return null;
@@ -342,13 +371,6 @@ function getLatestUpdatedAt(entries: TranscriptEntry[], fallback: string): strin
       .reverse()
       .find((entry): entry is Extract<TranscriptEntry, { timestamp: string }> => "timestamp" in entry);
     return latest?.timestamp ?? fallback;
-}
-
-function createEmptyUsage(): Usage {
-    return {
-        input_tokens: 0,
-        output_tokens: 0,
-    };
 }
 
 export async function listProjectSessions(cwd: string, limit = MAX_SESSIONS): Promise<SessionSummary[]> {
@@ -395,3 +417,27 @@ export async function listProjectSessions(cwd: string, limit = MAX_SESSIONS): Pr
 }
 
 
+export async function appendCompactionSnapshot(
+    cwd: string,
+    sessionId: string,
+    trigger: "auto" | "manual",
+    messages: MessageParam[],
+): Promise<void> {
+    const paths = await getSessionPaths(cwd, sessionId);
+    await ensureSessionDir(paths);
+    const lines: string[] = [];
+    lines.push(JSON.stringify({
+        type: "compaction",
+        timestamp: getTimestamp(),
+        trigger,
+    }));
+    for (const message of messages) {
+        lines.push(JSON.stringify({
+            type: "message",
+            timestamp: getTimestamp(),
+            role: message.role,
+            content: message.content,
+        }));
+    }
+    await fs.appendFile(paths.transcriptPath, lines.join("\n") + "\n", "utf-8");
+}
