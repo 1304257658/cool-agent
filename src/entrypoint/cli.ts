@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { loadEnv } from "../utils/loadEnv.js";
+import { loadEnv, AGENT_NAME } from "../utils/loadEnv.js";
 loadEnv();
 import { buildSystemPrompt, renderSystemPrompt } from "../context/systemPrompt.js";
 import type { PermissionMode } from "../permissions/permissions.js";
@@ -33,17 +33,17 @@ async function renderCli(model?: string, systemPrompt?: string, permissionMode?:
     );
     await waitUntilExit();
 
-    console.log("Hello, Cool Agent CLI!");
+    console.log(`Hello, ${AGENT_NAME} CLI!`);
 }
 
 async function main(): Promise<void> {
     if (process.argv.includes("--version") || process.argv.includes("-v")) {
-        console.log(`Cool Agent v${VERSION}`);
+        console.log(`${AGENT_NAME} v${VERSION}`);
         process.exit(0);
     }
     if (process.argv.includes("--help") || process.argv.includes("-h")) {
         console.log(`
-Cool Agent v${VERSION} — Terminal-native agentic coding system
+${AGENT_NAME} v${VERSION} — Terminal-native agentic coding system
 
 Usage:
   agent [options]

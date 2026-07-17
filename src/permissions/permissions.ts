@@ -2,6 +2,8 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 
+import { AGENT_HOME, AGENT_HOME_NAME } from "../utils/loadEnv.js";
+
 import type { Tool } from "../tools/Tool.js";
 import { isReadOnlyCommand } from "../tools/bashTool.js";
 
@@ -102,8 +104,8 @@ async function readSettingsFile(filePath: string): Promise<Partial<PermissionSet
 }
 
 export async function loadPermissionSettings(cwd: string): Promise<PermissionSettings> {
-    const userSettingsPath = path.join(os.homedir(), ".cool-agent", "settings.json");
-    const projectSettingsPath = path.join(cwd, ".cool-agent", "settings.json");
+    const userSettingsPath = path.join(AGENT_HOME, "settings.json");
+    const projectSettingsPath = path.join(cwd, AGENT_HOME_NAME, "settings.json");
 
     const [userSettings, projectSettings] = await Promise.all([
         readSettingsFile(userSettingsPath),

@@ -10,7 +10,6 @@ import { isMemoryType } from "./memoryTypes.js";
 
 const MAX_ENTRYPOINT_LINES = 200;
 const MAX_ENTRYPOINT_BYTES = 1024 * 25;
-const MAX_RELEVANT_MEMORIES = 5;
 
 
 export interface WriteProjectMemoryOptions {
@@ -26,6 +25,11 @@ export interface WriteProjectMemoryResult {
     fileName: string;
     filePath: string;
     updatedExisting: boolean;
+}
+
+export interface MemoryHeader extends MemoryEntry {
+    frontmatter: MemoryFrontamatter;
+    relativePath: string;
 }
 
 
@@ -82,31 +86,77 @@ function stripFrontmatter(raw: string): string {
     return raw.replace(/^---\n([\s\S]*?)\n---\n?/, "");
 }
 
-async function listMemoryFiles(cwd: string): Promise<MemoryDocument[]> {
-    const memoryDir = await ensureMemoryDirExists(cwd);
-    const dirents = await fs.readdir(memoryDir, { withFileTypes: true });
-    const docs = await Promise.all(
-        dirents
-          .filter((enrty) => enrty.isFile() && enrty.name.endsWith(".md") && enrty.name !== MEMORY_ENTRYPOINT)
-          .map(async (entry) => {
-                const filePath = path.join(memoryDir, entry.name);
-                const raw = await fs.readFile(filePath, "utf-8");
-                const frontmatter = parseFrontmatter(raw);
-                if (!frontmatter) return null;
-                return {
-                    fileName: entry.name,
-                    filePath,
-                    title: frontmatter.name,
-                    hook: frontmatter.description,
-                    frontmatter,
-                    body: stripFrontmatter(raw),
-                } satisfies MemoryDocument;
-          }),
+
+async function collectMemoryMarkdownFiles(memoryDir: string, currentDir = memoryDir): Promise<string[]> {
+    const dirents = await fs.readdir(currentDir, { withFileTypes: true });
+    const nested = await Promise.all(
+        dirents.map(async (entry) => {
+            const fullPath = path.join(currentDir, entry.name);
+            if (entry.isDirectory()) {
+                return collectMemoryMarkdownFiles(memoryDir, fullPath);
+            }
+            if (entry.isFile() && entry.name.endsWith(".md") && entry.name !== MEMORY_ENTRYPOINT) {
+                return [path.relative(memoryDir, fullPath)];
+            }
+            return [];
+        }),
     );
 
+    return nested.flat();
+}
+
+export async function loadMemoryHeaders(cwd: string): Promise<MemoryHeader[]> {
+    const memoryDir = await ensureMemoryDirExists(cwd);
+    const relativePaths = await collectMemoryMarkdownFiles(memoryDir);
+    const headers = await Promise.all(
+        relativePaths.map(async (relativePath) => {
+            const filePath = path.join(memoryDir, relativePath);
+            const raw = await fs.readFile(filePath, "utf-8");
+            const frontmatter = parseFrontmatter(raw);
+            if (!frontmatter) return null;
+            return {
+                fileName: relativePath,
+                filePath,
+                title: frontmatter.name,
+                hook: frontmatter.description,
+                frontmatter,
+                relativePath,
+            } satisfies MemoryHeader;
+        }),
+    );
+    return headers
+      .filter((header): header is MemoryHeader => header !== null)
+      .sort((a, b) => a.relativePath.localeCompare(b.relativePath));
+}
+
+export async function loadMemoryDocumentBodies(cwd: string, relativePaths: readonly string[]): Promise<MemoryDocument[]> {
+    const memoryDir = await ensureMemoryDirExists(cwd);
+    const uniquePaths = [...new Set(relativePaths)];
+    const docs = await Promise.all(
+        uniquePaths.map(async (relativePath) => {
+            const filePath = path.join(memoryDir, relativePath);
+            const raw = await fs.readFile(filePath, "utf-8");
+            const frontmatter = parseFrontmatter(raw);
+            if (!frontmatter) return null;
+            return {
+                fileName: relativePath,
+                filePath,
+                relativePath,
+                title: frontmatter.name,
+                hook: frontmatter.description,
+                frontmatter,
+                body: stripFrontmatter(raw),
+            } satisfies MemoryDocument;
+        }),
+    );
     return docs
       .filter((doc): doc is MemoryDocument => doc !== null)
       .sort((a, b) => a.fileName.localeCompare(b.fileName));
+}
+
+export async function listMemoryFiles(cwd: string): Promise<MemoryDocument[]> {
+    const headers = await loadMemoryHeaders(cwd);
+    return loadMemoryDocumentBodies(cwd, headers.map((header) => header.relativePath));
 }
 
 async function findExistingMemoryFile(cwd: string, name: string, description: string): Promise<string | null> {
@@ -209,49 +259,6 @@ export async function writeProjectMemory(input: WriteProjectMemoryOptions): Prom
 }
 
 
-function scoreTextMatch(text: string, terms: string[]): number {
-    return terms.reduce((acc, term) => acc + (text.includes(term) ? 1 : 0), 0);
-}
-
-export async function loadRelevantMemories(
-    cwd: string,
-    query: string,
-    options?: {
-        alreadySurfaced?: ReadonlySet<string>;
-        ignoreMemory?: boolean
-    },
-): Promise<string[]> {
-    if (options?.ignoreMemory) return [];
-
-    const normalizedQuery = normalizeLine(query).toLowerCase();
-    if (normalizedQuery.length < 3) return [];
-
-    // 过滤出有效术语
-    const terms = normalizedQuery.split(/[^a-zA-Z0-9_\-\u4e00-\u9fff]+/).filter(Boolean);
-    if (terms.length === 0) return [];
-
-    const docs = await listMemoryFiles(cwd);
-    const scored = docs
-      .filter((doc) => !(options?.alreadySurfaced?.has(doc.fileName) ?? false))
-      .map((doc) => {
-        const haystack = `${doc.frontmatter.name}\n${doc.frontmatter.description}\n${doc.body}`.toLowerCase();
-        return {
-            doc,
-            score: scoreTextMatch(haystack, terms),
-        };
-      })
-      .filter((item) => {
-        item.score > 0
-      })
-      .sort((a, b) => b.score - a.score)
-      .slice(0, MAX_RELEVANT_MEMORIES);
-
-    return scored.map((item) => {
-        const header = buildFrontmatterHeader(item.doc.frontmatter.name, item.doc.frontmatter.description, item.doc.frontmatter.type);
-        return `${header}\n${item.doc.body}\n`.trim();
-    })
-}
-
 export async function readMemoryEntrypoint(cwd: string): Promise<string | null> {
     const memoryDir = await ensureMemoryDirExists(cwd);
     const entrypoint = path.join(memoryDir, MEMORY_ENTRYPOINT);
@@ -266,15 +273,25 @@ export function shouldIgnoreMemory(query: string): boolean {
     return ["ignore memory", "don't use memory", "do not use memory", "忽略记忆", "不要用记忆", "别用记忆"].some((term) => normalized.includes(term));
 }
 
-export function buildMemoryPromptInstructions(memoryDir: string): string[] {
+export function buildMemoryPromptInstructions(): string[] {
     return [
-        "You have a persistent, file-based project memory system for this project.",
         "Use memory only for information that will be useful in future conversations and cannot be derived directly from the current repo state.",
         "Supported memory types: user, feedback, project, reference.",
         "When saving a memory, write one markdown file with frontmatter: name, description, type.",
         `After writing or updating a memory file, update ${MEMORY_ENTRYPOINT} with a one-line pointer in the form: - [Title](file.md) — one-line hook.`,
         `${MEMORY_ENTRYPOINT} is an index, not a place to store full memory content.`,
         `Keep ${MEMORY_ENTRYPOINT} under ${MAX_ENTRYPOINT_LINES} lines and ${MAX_ENTRYPOINT_BYTES} bytes.`,
-        "Before creating a new memory, check whether an existing memory should be updated instead.",
+        "Before creating a new memory, inspect existing topic memory files and update the best match when possible.",
+    ];
+}
+
+
+export function formatMemorySystemLocation(memoryDir: string): string[] {
+    const entrypointPath = path.join(memoryDir, MEMORY_ENTRYPOINT);
+    return [
+        `You have a persistent, file-based project memory system at \`${memoryDir}\`.`,
+        `The memory index file is \`${entrypointPath}\`.`,
+        `The index points to topic memory files stored under \`${memoryDir}\` (including subdirectories).`,
+        "Before creating a new memory, inspect existing topic files and update the best match when possible.",
     ];
 }

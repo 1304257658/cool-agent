@@ -2,15 +2,24 @@ import * as os from "node:os";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 
+import { AGENT_HOME, AGENT_NAME } from "../utils/loadEnv.js";
 import { loadAgentMdContext } from "./claudeMd.js";
-import { findRelevantMemories } from "./memory/findRelevantMemories.js";
+
 import {
     buildMemoryPromptInstructions,
     ensureMemoryDirExists,
+    formatMemorySystemLocation,
     readMemoryEntrypoint,
     shouldIgnoreMemory,
 } from "./memory/memdir.js";
-import { buildMemoryValidationGuidance } from "./memory/memoryTypes.js";
+import {
+    buildMemoryAccessGuidance,
+    buildMemoryExclusionGuidance,
+    buildMemoryPersistenceBoundaryGuidance,
+    buildMemoryTypeGuidance,
+    buildMemoryValidationGuidance,
+} from "./memory/memoryTypes.js";
+
 
 const execFileAsync = promisify(execFile);
 
@@ -36,11 +45,11 @@ export interface BuildSystemPromptOptions {
 
 function getStaticPromptSections(): string {
     return [
-        "You are Cool Agent, a terminal-native local coding assistant running inside the user's workspace.",
+        `You are ${AGENT_NAME}, a terminal-native local coding assistant running inside the user's workspace.`,
         "Operate directly, be concise, and prefer taking concrete actions with tools when useful.",
         "When solving coding tasks, first understand the relevant files, then make focused changes, then verify with the least expensive effective command.",
         "Prefer specialized tools over shell when possible: use Read for reading files, Edit for precise changes, Write for full file creation or overwrite, Grep for content search, Glob for file discovery, and Bash only when shell execution is actually needed.",
-        "Respect the current working directory as your workspace boundary. Do not assume files outside the workspace are available.",
+        `Treat the current working directory as the primary workspace boundary. The ${AGENT_NAME} system directory at ${AGENT_HOME} is also available for memory and session storage; do not assume other outside paths are available.`,
         "When editing code, preserve existing behavior unless the user explicitly asks for a behavior change.",
         "If a command or edit fails, explain the failure briefly and choose the next best action based on the observed result.",
         "Keep answers structured and practical. Summarize what you changed or found, and avoid unnecessary narration.",
@@ -100,11 +109,10 @@ function formatEnvironmentContext(context: RuntimeEnvironmentContext): string {
 export async function buildSystemPrompt(options: BuildSystemPromptOptions): Promise<string[]> {
     const ignoreMemory = options.userQuery ? shouldIgnoreMemory(options.userQuery) : false;
     const memoryDir = await ensureMemoryDirExists(options.cwd);
-    const [environmentContext, agentMdContext, memoryEntrypoint, relevantMemories] = await Promise.all([
+    const [environmentContext, agentMdContext, memoryEntrypoint] = await Promise.all([
         getRuntimeEnvironmentContext(options.cwd),
         loadAgentMdContext(options.cwd),
         ignoreMemory ? Promise.resolve(null) : readMemoryEntrypoint(options.cwd),
-        options.userQuery ? findRelevantMemories(options.cwd, options.userQuery) : Promise.resolve([]),
     ]);
 
     const staticSections = [
@@ -114,11 +122,15 @@ export async function buildSystemPrompt(options: BuildSystemPromptOptions): Prom
     ];
 
     const memorySections = [
-        ...buildMemoryPromptInstructions(memoryDir),
-        buildMemoryValidationGuidance(),
+        ...formatMemorySystemLocation(memoryDir),
+        ...buildMemoryPromptInstructions(),
+        ...buildMemoryTypeGuidance(),
+        ...buildMemoryExclusionGuidance(),
+        ...buildMemoryAccessGuidance(),
+        ...buildMemoryValidationGuidance(),
+        ...buildMemoryPersistenceBoundaryGuidance(),
         ignoreMemory ? "Memory is disabled for this turn because the user asked not to use it." : "",
         memoryEntrypoint ? `Memory index:\n${memoryEntrypoint}` : "",
-        relevantMemories.length > 0 ? `Relevant memories:\n${relevantMemories.join("\n\n---\n\n")}` : "",
     ].filter(Boolean);
 
     const dynamicSections = [

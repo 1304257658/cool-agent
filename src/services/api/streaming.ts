@@ -104,12 +104,7 @@ export async function* streamMessage(
             }
 
             case "content_block_start":
-                if (event.content_block.type === "thinking") {
-                    contentBlocks[event.index] = {
-                        type: "thinking",
-                        text: ""
-                    };
-                } else if (event.content_block.type === "tool_use") {
+                if (event.content_block.type === "tool_use") {
                     const b = event.content_block;
                     contentBlocks[event.index] = {
                         type: "tool_use",
@@ -123,6 +118,11 @@ export async function* streamMessage(
                         id: b.id,
                         name: b.name
                     };
+                // } else if (event.content_block.type === "thinking") {
+                //     contentBlocks[event.index] = {
+                //         type: "thinking",
+                //         text: ""
+                //     };
                 } else if (event.content_block.type === "text") {
                     contentBlocks[event.index] = {
                         type: "text",
@@ -132,14 +132,14 @@ export async function* streamMessage(
                 break;
 
             case "content_block_delta":
-                if (event.delta.type === "thinking_delta") {
-                    (contentBlocks[event.index] as ThinkingBlock).text += event.delta.thinking;
-                    yield { 
-                        type: "thinking", 
-                        text: event.delta.thinking 
-                    };
-                } else if (event.delta.type === "input_json_delta") {
+                if (event.delta.type === "input_json_delta") {
                     currentToolInputJson += event.delta.partial_json;
+                // } else if (event.delta.type === "thinking_delta") {
+                //     (contentBlocks[event.index] as ThinkingBlock).text += event.delta.thinking;
+                //     yield { 
+                //         type: "thinking", 
+                //         text: event.delta.thinking 
+                //     };
                 } else if (event.delta.type === "text_delta") {
                     (contentBlocks[event.index] as TextBlock).text += event.delta.text;
                     yield { 
