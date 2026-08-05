@@ -11,9 +11,15 @@ import {
 } from "../permissions/permissions.js";
 import { streamMessage } from "../services/api/streaming.js";
 import { findToolByName } from "../tools/index.js";
-import type { ToolContext, ToolResult } from "../tools/Tool.js";
+import {
+    truncateToolResult,
+    type ToolContext,
+    type ToolResult,
+} from "../tools/Tool.js";
 import type { ContentBlock, ToolUseBlock, Usage } from "../types/message.js";
 import { createEmptyUsage } from "../utils/usage.js";
+import { calculateTokenWarningState, TokenWarningResult } from "../context/autoCompact.js";
+import { tokenCountWithEstimation } from "../utils/tokens.js";
 
 
 // Agentic Loop 最大工具调用轮次，防止无限循环
@@ -29,7 +35,8 @@ export type LoopTerminationReason =
     | "completed"
     | "aborted"
     | "model_error"
-    | "max_turns";
+    | "max_turns"
+    | "blocking_limit";
 
 export type AgenticLoopEvent =
     | {
@@ -64,6 +71,10 @@ export type AgenticLoopEvent =
         type: "turn_complete";
         reason: LoopTerminationReason;
         turnCount: number;
+    }
+    | {
+        type: "token_warning";
+        warning: TokenWarningResult;
     }
     | {
         type: "error";
@@ -211,7 +222,11 @@ async function runTools(
                 }
             }
 
-            const result = await tool.call(block.input as Record<string, any>, context);
+            const rawResult = await tool.call(block.input as Record<string, any>, context);
+            const result: ToolResult = {
+                ...rawResult,
+                content: truncateToolResult(rawResult.content, tool.maxResultSizeChars),
+            };
             toolResults.push({
                 type: "tool_result",
                 tool_use_id: block.id,
@@ -291,6 +306,50 @@ export async function* query(
         const nextTurnCount = state.turnCount + 1;
         let assistantContent: ContentBlock[] = [];
         let stopReason = ""
+
+        // Token budget check before API call (skip first turn — let the API decide)
+        if (state.turnCount > 0) {
+            const estimatedTokens = tokenCountWithEstimation(state.messages, {
+                usage: lastCallUsage.input_tokens > 0
+                  ? lastCallUsage
+                  : undefined,
+                usageAnchorIndex: lastCallUsage.input_tokens > 0
+                  ? state.messages.length - 1
+                  : undefined,
+                systemPrompt: params.systemPrompt,
+            });
+            const warningState = calculateTokenWarningState(estimatedTokens, params.model);
+
+            if (warningState.state !== "normal") {
+                yield {
+                    type: "token_warning",
+                    warning: warningState,
+                };
+            };
+
+            if (warningState.state === "blocking") {
+                yield {
+                    type: "error",
+                    error: new Error(
+                        `Context window limit reached (${estimatedTokens} tokens estimated, blocking limit ${warningState.blockingLimit}, window ${warningState.contextWindow}). Use /compact to free space.`,
+                    ),
+                };
+                yield {
+                    type: "turn_complete",
+                    reason: "blocking_limit",
+                    turnCount: nextTurnCount
+                };
+                return {
+                    state: {
+                        ...state,
+                        turnCount: nextTurnCount
+                    },
+                    usage: totalUsage,
+                    lastCallUsage,
+                    reason: "blocking_limit"
+                };
+            };
+        }
 
         // 2. 调用 streamMessage()
         const stream = streamMessage({

@@ -15,11 +15,21 @@ import {
 import type { ToolContext } from "../tools/Tool.js";
 import type { Usage } from "../types/message.js";
 import { createEmptyUsage } from "../utils/usage.js";
-import { compactMessages } from "../context/compaction.js"
-import { buildTokenBudgetSnapshot } from "../utils/tokens.js";
+import {
+    compactMessages,
+} from "../context/compaction.js";
+import {
+    autoCompactIfNeeded,
+    calculateTokenWarningState,
+    type TokenWarningState,
+    type TokenWarningResult,
+} from "../context/autoCompact.js"
+import { tokenCountWithEstimation } from "../utils/tokens.js";
 import { buildSystemPrompt, renderSystemPrompt } from "../context/systemPrompt.js";
 import { getToolsApiParams } from "../tools/index.js";
 import { formatProjectSessionHistory } from "../session/history.js";
+import { summarizePermissionRequest } from '../permissions/permissions.js';
+import { initSessionStorage } from "../session/storage.js";
 
 
 export type QueryEngineEvent = 
@@ -40,6 +50,10 @@ export type QueryEngineEvent =
         lastCallUsage: Usage;
     }
     | {
+        type: "token_warning";
+        warning: TokenWarningResult;
+    }
+    | {
         type: "command";
         message: string;
         kind: "info" | "error";
@@ -51,6 +65,10 @@ export type QueryEngineEvent =
     }
     | {
         type: "session_cleared";
+    }
+    | {
+        type: "token_warning";
+        warning: TokenWarningState;
     };
 
 
@@ -97,6 +115,11 @@ export class QueryEngine {
         this.messages = [...(options.initialMessages ?? [])];
         this.totalUsage = {...options.initialUsage ?? createEmptyUsage()};
         this.usageAnchorIndex = this.messages.length > 0 ? this.messages.length - 1 : -1;
+    }
+
+    private invalidateUsageAnchor(): void {
+        this.usageAnchorIndex = -1;
+        this.lastCallUsage = createEmptyUsage();
     }
 
     private getActiveModel(): string {
@@ -259,23 +282,25 @@ export class QueryEngine {
                     force: true,
                 });
                 this.messages = [...result.messages];
+                if (result.didCompact || result.didMicroCompact) {
+                    this.invalidateUsageAnchor();
+                }
                 yield {
                     type: "messages_updated",
                     messages: [...this.messages]
                 };
-                yield {
-                    type: "compacted",
-                    summary: result.summary,
-                    trigger: focus ? "manual" : result.didCompact ? "manual" : "micro",
-                };
-                yield {
-                    type: "command",
-                    kind: "info",
-                    message: result.didCompact
-                      ? `Conversation compacted.${focus ? ` Focus: ${focus}` : ""}`
-                      : result.didMicroCompact
-                        ? "Old tool results were micro-compacted."
-                        : "Conversation did not been compaction.",
+                if (result.didCompact || result.didMicroCompact) {
+                    yield {
+                        type: "compacted",
+                        summary: result.summary,
+                        trigger: focus ? "manual" : result.didCompact ? "manual" : "micro",
+                    };
+                } else {
+                    yield {
+                        type: "command",
+                        kind: "info",
+                        message: "Conversation did not need compaction."
+                    };
                 };
                 return {
                     handled: true,
@@ -316,22 +341,61 @@ export class QueryEngine {
         });
         const previewSystemPrompt = renderSystemPrompt(previewSystemParts);
 
-        const compacted = await compactMessages(this.messages, undefined, {
-            usage: this.lastCallUsage,
-            usageAnchorIndex: this.usageAnchorIndex,
-            systemPrompt: previewSystemPrompt,
-        });
-        if (compacted.didMicroCompact || compacted.didCompact) {
-            this.messages = [...compacted.messages];
-            yield {
-                type: "messages_updated",
-                messages: [...this.messages]
-            };
-            yield {
-                type: "compacted",
-                summary: compacted.summary,
-                trigger: compacted.didCompact ? "auto" : "micro",
-            };
+        if (this.messages.length > 0) {
+            const microResult = await compactMessages(this.messages, undefined, {
+                usage: this.lastCallUsage,
+                usageAnchorIndex: this.usageAnchorIndex,
+                systemPrompt: previewSystemPrompt,
+            });
+
+            if (microResult.didMicroCompact || microResult.didCompact) {
+                this.messages = [...microResult.messages];
+                this.invalidateUsageAnchor();
+                yield {
+                    type: "messages_updated",
+                    messages: [...this.messages]
+                };
+                yield {
+                    type: "compacted",
+                    summary: microResult.summary,
+                    trigger: microResult.didCompact ? "auto" : "micro",
+                };
+            }
+
+            const { result: autoResult, didAutoCompact } = await autoCompactIfNeeded(
+                this.messages,
+                this.getActiveModel(),
+                {
+                    usage: this.lastCallUsage,
+                    usageAnchorIndex: this.usageAnchorIndex,
+                    systemPrompt: previewSystemPrompt,
+                },
+            );
+            if (didAutoCompact) {
+                this.messages = [...autoResult.messages];
+                this.invalidateUsageAnchor();
+                yield {
+                    type: "messages_updated",
+                    messages: [...this.messages]
+                };
+                yield {
+                    type: "compacted",
+                    summary: autoResult.summary, trigger: "auto"
+                };
+            }
+
+            const estimatedTokens = tokenCountWithEstimation(this.messages, {
+                usage: this.lastCallUsage,
+                usageAnchorIndex: this.usageAnchorIndex,
+                systemPrompt: previewSystemPrompt,
+            });
+            const warningState = calculateTokenWarningState(estimatedTokens, this.getActiveModel());
+            if (warningState.state !== "normal") {
+                yield {
+                    type: "token_warning",
+                    warning: warningState,
+                };
+            }
         }
 
         const userMessage: MessageParam = {

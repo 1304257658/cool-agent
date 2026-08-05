@@ -33,6 +33,10 @@ import type {
 } from './../types.js';
 import type { ToolContext } from "../../tools/Tool.js";
 import { QueryEngine } from '../../core/queryEngine.js';
+import type {
+    TokenWarningResult
+} from '../../context/autoCompact.js'
+
 
 interface UseAgentSessionOptions {
   model: string;
@@ -495,10 +499,18 @@ export function useAgentSession({
                             });
                             break;
                         case "compacted":
+                            const compactTitle = value.trigger === "micro"
+                              ? "Context micro-compacted"
+                              : value.trigger === "auto"
+                                ? "Context auto-compacted"
+                                : "Conversation compacted";
+                            const compactBody = value.trigger === "micro"
+                              ? "Old tool results cleared to save context space."
+                              : "Conversation history has been summarized to free up context window.";
                             setSystemNotice({
                                 tone: "info",
-                                title: value.trigger === "micro" ? "Context micro-compacted" : "Conversation compacted",
-                                body: value.summary ?? (value.trigger === "micro" ? "Old tool results were cleared to save context space." : "Conversation summary created."),
+                                title: compactTitle,
+                                body: compactBody,
                             });
                             if (value.trigger !== "micro") {
                                 const compactedMessages = engineRef.current?.getState().messages ?? [];
@@ -526,12 +538,42 @@ export function useAgentSession({
                             setToolCalls([]);
                             setLastUsage(null);
                             break;
+                        case "token_warning": {
+                            const w = value.warning as TokenWarningResult;
+                            const pct = Math.round((w.estimatedTokens / w.contextWindow) * 100);
+                            if (w.state === "warning") {
+                                setSystemNotice({
+                                    tone: "info",
+                                    title: "Context window filling up",
+                                    body: `${pct}% used (${w.estimatedTokens} / ${w.contextWindow} tokens). Consider using / compact.`
+                                });
+                            } else if (w.state === "error") {
+                                setSystemNotice({
+                                    tone: "error",
+                                    title: "Context window nearly full",
+                                    body: `${pct}% used (${w.estimatedTokens} / ${w.contextWindow} tokens). Auto-compaction will trigger.`,
+                                });
+                            } else if (w.state === "blocking") {
+                                setSystemNotice({
+                                    tone: "error",
+                                    title: "Context window limit reached",
+                                    body: `${pct}% used (${w.estimatedTokens} / %{w.contextWindow} tokens). Use /compact to free space.`,
+                                });
+                            }
+                            break;
+                        }
                         case "turn_complete":
                             if (value.reason === "max_turns") {
                                 setSystemNotice({
                                     tone: "error",
                                     title: "Turn complete",
                                     body: `Reached maximun tool turns (${value.turnCount}).`
+                                })
+                            } else if (value.reason === "blocking_limit") {
+                                setSystemNotice({
+                                    tone: "error",
+                                    title: "Context window limit reached",
+                                    body: "Cannot continue - context is full. Use /compact to free space."
                                 })
                             }
                             break;

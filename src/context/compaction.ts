@@ -66,7 +66,7 @@ interface CompactionCheckOptions {
     force?: boolean;
 }
 
-interface CompactionResult {
+export interface CompactionResult {
     messages: MessageParam[];
     summary?: string;
     didCompact: boolean;
@@ -273,7 +273,7 @@ export async function compactMessages(
     });
 
     if (!options.force && budgetSnapshot.estimatedConversationTokens < budgetSnapshot.autoCompactThreshold) {
-        debugLog("compact", "skil_full_compact", {
+        debugLog("compact", "skip_full_compact", {
             reason: "below_auto_threshold",
             estimatedConversationTokens: budgetSnapshot.estimatedConversationTokens,
             autoCompactThreshold: budgetSnapshot.autoCompactThreshold,

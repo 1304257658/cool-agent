@@ -2,6 +2,14 @@ import React from "react";
 import { Box, Text } from "ink";
 import type { MessageParam } from "@anthropic-ai/sdk/resources/messages.js";
 
+
+function isCompactMessage(message: MessageParam): boolean {
+  const content = typeof message.content === "string" ? message.content : "";
+  if (content.startsWith("[CompactBoundary]")) return true;
+  if (content.startsWith("This session is being continued from a previous conversation")) return true;
+  return false;
+}
+
 interface ConversationViewProps {
   messages: MessageParam[];
 }
@@ -10,6 +18,10 @@ export function ConversationView({ messages }: ConversationViewProps): React.Rea
   return (
     <>
       {messages.map((message, index) => {
+        if (isCompactMessage(message)) {
+          return null;
+        };
+        
         if (message.role === "user" && typeof message.content === "string") {
           return (
             <Box key={`u${index}`} marginTop={1}>
