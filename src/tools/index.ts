@@ -11,6 +11,9 @@ import { bashTool } from './bashTool.js';
 import { grepTool } from './grepTool.js';
 import { globTool } from "./globTool.js";
 import { memoryWriteTool } from "./memoryWriteTool.js";
+import { enterPlanModeTool } from "./enterPlanModeTool.js";
+import { exitPlanModeTool } from "./exitPlanModeTool.js";
+import type { PermissionMode } from "../permissions/permissions.js";
 
 
 // 为文本内容添加行号
@@ -42,6 +45,8 @@ const BUILT_IN_TOOLS: Tool[] = [
     grepTool,
     globTool,
     memoryWriteTool,
+    enterPlanModeTool,
+    exitPlanModeTool
 ];
 
 // 获取所有启用的工具
@@ -56,6 +61,19 @@ export function findToolByName(name: string): Tool | undefined {
 
 // 将内置工具列表转换为 Anthropic API 接受的 Tool 格式
 // getToolsApiParams 负责将 Tool 接口的 inputSchema 映射为 Anthropic 的 input_schema
-export function getToolsApiParams(): Anthropic.Tool[] {
-    return getAllTools().map(toolToApiParam);
+/**
+ * Get tool API params with mode-aware Enter/Exit visibility.
+ *
+ * The model always sees all tools (Write, Edit, Bash, etc.) regardless
+ * of mode. Enforcement happens in checkPermission at execution time.
+ * Only the plan mode transition tools are toggled:
+ * - In plan mode: hide EnterPlanMode, show ExitPlanMode
+ * - Outside plan mode: show EnterPlanMode, hide ExitPlanMode
+ */
+export function getToolsApiParams(mode?: PermissionMode): Anthropic.Tool[] {
+    const tools = getAllTools();
+    if (mode === "plan") {
+        return tools.filter((t) => t.name !== "EnterPlanMode").map(toolToApiParam);
+    }
+    return tools.filter((t) => t.name !== "ExitPlanMode").map(toolToApiParam);
 }

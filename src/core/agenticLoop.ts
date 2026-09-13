@@ -92,6 +92,8 @@ export interface QueryParams {
     messages: MessageParam[];
     systemPrompt?: string;
     tools?: Anthropic.Tool[];
+    /** Dynamic tool list getter — called on each API iteration to reflect mode changes. */
+    getTools?: () => Anthropic.Tool[];
     model: string;
     maxTokens?: number;
     abortSignal?: AbortSignal;
@@ -162,31 +164,33 @@ async function runTools(
         };
 
         try {
+            // Read live permission mode from tool context (updated by Enter/ExitPlanMode)
+            const liveMode = context.getPermissionMode?.() as PermissionMode | undefined;
             const permission = await checkPermission({
-              tool,
-              input: block.input as Record<string, unknown>,
-              cwd: context.cwd,
-              mode: options.permissionMode,
-              sessionRules: options.sessionPermissionRules,
-              settings: options.permissionSettings,
+                tool,
+                input: block.input as Record<string, unknown>,
+                cwd: context.cwd,
+                mode: liveMode ?? options.permissionMode,
+                sessionRules: options.sessionPermissionRules,
+                settings: options.permissionSettings,
             });
             if (permission.behavior === "deny") {
-              const result: ToolResult = {
-                content: `Permission denied for ${block.name}: ${permission.reason}`,
-                isError: true,
-              };
-              toolResults.push({
-                type: "tool_result",
-                tool_use_id: block.id,
-                content: result.content,
-                is_error: true,
-              });
-              executions.push({
-                toolUseId: block.id,
-                toolName: block.name,
-                result: result,
-              });
-              continue;
+                const result: ToolResult = {
+                    content: `Permission denied for ${block.name}: ${permission.reason}`,
+                    isError: true,
+                };
+                toolResults.push({
+                    type: "tool_result",
+                    tool_use_id: block.id,
+                    content: result.content,
+                    is_error: true,
+                });
+                executions.push({
+                    toolUseId: block.id,
+                    toolName: block.name,
+                    result: result,
+                });
+                continue;
             }
 
             if (permission.behavior === "ask") {
@@ -212,13 +216,13 @@ async function runTools(
                         result: result,
                     })
                     continue;
-              }
+                }
 
-              if (decision === "allow_always") {
-                  const allowRules = options.sessionPermissionRules?.allow;
-                  if (allowRules && !allowRules.includes(permission.request.ruleHint)) {
-                      allowRules.push(permission.request.ruleHint);
-                  }
+                if (decision === "allow_always") {
+                    const allowRules = options.sessionPermissionRules?.allow;
+                    if (allowRules && !allowRules.includes(permission.request.ruleHint)) {
+                        allowRules.push(permission.request.ruleHint);
+                    }
                 }
             }
 
@@ -352,12 +356,13 @@ export async function* query(
         }
 
         // 2. 调用 streamMessage()
+        const currentTools = params.getTools ? params.getTools() : params.tools;
         const stream = streamMessage({
             messages: [...state.messages],
             model: params.model,
             maxTokens: params.maxTokens,
             system: params.systemPrompt,
-            tools: params.tools,
+            tools: currentTools && currentTools.length > 0 ? currentTools : undefined,
             signal: params.abortSignal,
         });
 

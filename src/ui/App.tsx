@@ -39,10 +39,12 @@ export function App({ model, systemPrompt, permissionMode, shouldResume, resumeS
     shouldResume: shouldResume,
     resumeSessionId: resumeSessionId,
   })
+  const isPlanExitActive = Boolean(state.permissionPrompt?.isPlanExit);
 
   const { inputValue, commandSuggestions } = usePromptInput({
     isLoading: state.isLoading,
-    hasPermissionPrompt: state.permissionPrompt !== null,
+    hasPermissionPrompt: Boolean(state.permissionPrompt) && !isPlanExitActive,
+    isPlanExitPrompt: false,
     onSubmit: actions.submit,
     onExit: exit,
     onInterrupt: actions.interrupt,
@@ -74,6 +76,7 @@ export function App({ model, systemPrompt, permissionMode, shouldResume, resumeS
         lastUsage={state.lastUsage}
         permissionPrompt={state.permissionPrompt}
         permissionMode={state.permissionMode}
+        onPlanDecision={actions.resolvePermission}
       />
       
       {/* ── 显示调试信息 ── */}

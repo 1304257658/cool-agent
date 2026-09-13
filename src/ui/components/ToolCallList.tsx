@@ -11,29 +11,31 @@ export function ToolCallList({ toolCalls }: ToolCallListProps): React.ReactNode 
         return null;
     }
 
-    return (
-        <Box flexDirection="column" marginTop={0}>
-            {toolCalls.map((toolCall, index) => (
-                <Box key={ `tc${index}` } marginLeft={2}>
-                {toolCall.resultLength !== undefined
-                    // 工具调用已完成：显示绿色勾号和返回结果长度
-                    ? (
-                        toolCall.isError ? (
-                            <Text color="red">{"  \u2717 "}{toolCall.name}: error</Text>
-                        ) : (
-                            <>
-                                <Text color="green">{"  \u2713 "}{toolCall.name}</Text>
-                                <Text dimColor>({toolCall.resultLength} chars)</Text>
-                            </>
-                        )
-                    )
-                    // 工具正在执行：显示黄色等待状态
-                    : (
-                        <Text color="yellow">{"⚡ Using tool: "}{toolCall.name}</Text>
-                    )
-                }
-                </Box>
-            ))}
-        </Box>
-    );
+  return (
+    <Box flexDirection="column" marginTop={0}>
+      {toolCalls.map((toolCall, index) => {
+        const label = toolCall.displayName ?? toolCall.name;
+        return (
+          <Box key={`tc${index}`} marginLeft={2}>
+            {toolCall.resultLength !== undefined ? (
+              toolCall.isError ? (
+                <Text color="red">{"  \u2717 "}{label}: error</Text>
+              ) : (
+                <Text>
+                  <Text color="green">{"  \u2713 "}{label}</Text>
+                  {toolCall.displayHint ? (
+                    <Text dimColor>{"  "}{toolCall.displayHint}</Text>
+                  ) : (
+                    <Text dimColor> ({toolCall.resultLength} chars)</Text>
+                  )}
+                </Text>
+              )
+            ) : (
+              <Text color="yellow">{"  \u26A1 Using tool: "}{label}</Text>
+            )}
+          </Box>
+        );
+      })}
+    </Box>
+  );
 }

@@ -32,6 +32,7 @@ import type {
     SystemNotice,
 } from './../types.js';
 import type { ToolContext } from "../../tools/Tool.js";
+import { readPlan, getPlanFilePath, getPlansDirectory } from "../../context/plans.js";
 import { QueryEngine } from '../../core/queryEngine.js';
 import type {
     TokenWarningResult
@@ -55,6 +56,8 @@ function markToolCallComplete(
   name: string,
   resultLength: number,
   isError?: boolean,
+  displayName?: string,
+  displayHint?: string,
 ): ToolCallInfo[] {
   // 遍历工具调用列表，找到匹配名称且尚未完成的工具调用
   // 更新其 resultLength 和 isError 状态，返回新的工具调用数组
@@ -64,7 +67,8 @@ function markToolCallComplete(
     && toolCall.resultLength === undefined
     // 如果条件匹配，更新工具调用的 resultLength 和 isError 状态
     // 否则保持原状态不变
-    ? { ...toolCall, resultLength, isError } : toolCall,
+    ? { ...toolCall, resultLength, isError, displayName, displayHint }
+    : toolCall,
   );
 }
 
@@ -82,7 +86,9 @@ function buildCommandNotice(
                 "/clear  Clear conversation history",
                 "/cost  Show session token usage",
                 "/model [name|default]  Inspect or override the session model",
+                "/mode [default|plan|auto]  Inspect or switch permission mode",
                 "/history  Show saved sessions for this project",
+                "/compact  Compact conversation context",
                 "/exit | /quit | /bye  Exit session",
             ].join("\n"),
         }
@@ -150,9 +156,12 @@ export function useAgentSession({
     const [permissionPrompt, setPermissionPrompt] = useState<PermissionPromptState | null>(null);
     const [permissionSettings, setPermissionSettings] = useState<PermissionSettings | null>(null);
     const [currentModel, setCurrentModel] = useState(model);
+    const [activePermissionMode, setActivePermissionMode] = useState<string>(permissionMode ?? "default");
 
     const permissionResolverRef = useRef<((decision: PermissionDecision) => void) | null>(null);
-    const sessionRulesRef = useRef<PermissionRuleSet | null>({ allow: [], deny: [] });
+    const pendingClearContextRef = useRef(false);
+    const pendingFeedbackRef = useRef<string | null>(null);
+    const sessionRulesRef = useRef<PermissionRuleSet>({ allow: [], deny: [] });
     const engineRef = useRef<QueryEngine | null>(null);
     const sessionIdRef = useRef<string>(createSessionId());
     const latestSessionRef = useRef<string>("");
@@ -214,7 +223,7 @@ export function useAgentSession({
                     sessionPathRef.current = transcriptPath;
                 }
 
-                engineRef.current = new QueryEngine({
+                const engine = new QueryEngine({
                     model: model,
                     toolContext: toolContext,
                     initialMessages,
@@ -222,19 +231,40 @@ export function useAgentSession({
                     permissionMode: permissionMode ?? permissionSettings?.mode,
                     permissionSettings: permissionSettings ?? undefined,
                     sessionPermissionRules: sessionRulesRef.current ?? undefined,
-                    onPermissionRequest: (request: PermissionRequest) => {
-                        setSpinnerLabel("Waiting for permission...");
+                    onPermissionRequest: async (request: PermissionRequest) => {
+                        const isPlanExit = request.toolName === "ExitPlanMode";
+                        setSpinnerLabel(isPlanExit ? "Waiting for plan approval" : "Waiting for permission");
+
+                        let planContent: string | undefined;
+                        let planFilePath: string | undefined;
+                        if (isPlanExit) {
+                            planContent = (await readPlan()) ?? undefined;
+                            planFilePath = getPlanFilePath();
+                        }
+
                         setPermissionPrompt({
                             toolName: request.toolName,
                             summary: request.summary,
                             risk: request.risk,
                             ruleHint: request.ruleHint,
+                            isPlanExit: isPlanExit,
+                            planContent: planContent,
+                            planFilePath: planFilePath,
                         });
                         return new Promise<PermissionDecision>((resolve) => {
                             permissionResolverRef.current = resolve;
                         });
                     },
                 });
+                engine.onModeChange((newMode, previousMode) => {
+                    setActivePermissionMode(newMode);
+                    const label = newMode === "plan" ? "Entered plan mode" : "Exited plan mode";
+                    const body = newMode === "plan"
+                        ? "Only read-only tools are available. Explore the codebase and write your plan."
+                        : `Returned to ${newMode} mode. Full tool access restored.`;
+                    setSystemNotice({ tone: "info", title: label, body });
+                });
+                engineRef.current = engine;
                 setCurrentModel(model);
             } catch (error: unknown) {
                 if (cancelled) return;
@@ -285,23 +315,47 @@ export function useAgentSession({
         return true;
     }, []);
 
-    const resolvePermission = useCallback((decision: PermissionDecision) => {
+    const resolvePermission = useCallback((decision: PermissionDecision, feedback?: string) => {
         if (!permissionResolverRef.current) {
             return false;
         }
-        permissionResolverRef.current(decision);
+
+        const autoAcceptRules = ["Write", "Edit", "Bash(npm *)","Bash(npx *)"];
+
+        if (decision === "allow_clear_context") {
+            pendingClearContextRef.current = true;
+            sessionRulesRef.current.allow.push(...autoAcceptRules);
+            permissionResolverRef.current("allow_once");
+            // Abort the loop immediately after ExitPlanMode runs,
+            // so the model doesn't start implementing in the same loop.
+            // The clear-context flow will submit a fresh "Implement" message.
+            engineRef.current?.interrupt();
+        } else if (decision === "allow_accept_edits") {
+            sessionRulesRef.current.allow.push(...autoAcceptRules);
+            permissionResolverRef.current("allow_once");
+        } else if (decision === "deny" && feedback) {
+            pendingFeedbackRef.current = feedback;
+            permissionResolverRef.current("deny");
+        } else {
+            permissionResolverRef.current(decision);
+        }
+
         permissionResolverRef.current = null;
         setPermissionPrompt(null);
-        setSystemNotice({
-            tone: decision === "deny" ? "error" : "info",
-            title: decision === "deny" ? "Permission denied" : "Permission granted",
-            body: 
-                decision === "allow_always"
-                ? "Permission granted and remembered for this session."
-                : decision === "allow_once"
-                  ? "Permission granted once."
-                  : "Permission denied.",
-        });
+
+        if (decision === "deny" && feedback) {
+            setSystemNotice({ tone: "info", title: "Plan rejected with feedback", body: `Feedback: ${feedback}` });
+        } else if (decision === "deny") {
+            setSystemNotice({ tone: "error", title: "Permission denied", body: "Permission denied." });
+        } else if (decision === "allow_clear_context") {
+            setSystemNotice({ tone: "info", title: "Plan approved", body: "Plan approved. Edits auto-accepted. Context will be cleared for implementation." });
+        } else if (decision === "allow_accept_edits") {
+            setSystemNotice({ tone: "info", title: "Plan approved", body: "Plan approved. Edits auto-accepted. Continuing with current context." });
+        } else if (decision === "allow_always") {
+            setSystemNotice({ tone: "info", title: "Permission granted", body: "Permission granted and remembered for this session." });
+        } else {
+            setSystemNotice({ tone: "info", title: "Permission granted", body: "Permission granted." });
+        }
         return true;
     }, []);
 
@@ -371,7 +425,7 @@ export function useAgentSession({
                 while (true) {
                     const { value, done } = await run.next();
                     if (done) {
-                        if (value.reason === "aborted") {
+                        if (value.reason === "aborted" && !pendingClearContextRef.current) {
                             setSystemNotice({
                                 tone: "info",
                                 title: "Interrupted",
@@ -415,12 +469,15 @@ export function useAgentSession({
                                 ruleHint: value.request.ruleHint,
                             });
                             break;
-                        case "tool_use_done":
+                        case "tool_use_done": {
+                            const isPlanFileWrite = (value.name === "Write" || value.name === "Edit") && value.result.content.includes(getPlansDirectory());
                             setToolCalls((prev) => markToolCallComplete(
                                     prev,
                                     value.name,
                                     value.result.content.length,
-                                    value.result.isError
+                                    value.result.isError,
+                                    isPlanFileWrite ? "Updated plan" : undefined,
+                                    isPlanFileWrite ? "/plan to preview" : undefined,
                                 ),
                             );
                             await appendTranscriptEntry(toolContext.cwd, sessionIdRef.current, {
@@ -433,6 +490,7 @@ export function useAgentSession({
                                 isError: value.result.isError,
                             });
                             break;
+                        }
                         case "assistant_message":
                             setStreamingText("");
                             await appendTranscriptEntry(toolContext.cwd, sessionIdRef.current, {
@@ -532,6 +590,9 @@ export function useAgentSession({
                         case "model_changed":
                             setCurrentModel(value.model);
                             break;
+                        case "mode_changed":
+                            setActivePermissionMode(value.mode);
+                            break;
                         case "session_cleared":
                             setMessages([]);
                             setStreamingText("");
@@ -557,7 +618,7 @@ export function useAgentSession({
                                 setSystemNotice({
                                     tone: "error",
                                     title: "Context window limit reached",
-                                    body: `${pct}% used (${w.estimatedTokens} / %{w.contextWindow} tokens). Use /compact to free space.`,
+                                    body: `${pct}% used (${w.estimatedTokens} / ${w.contextWindow} tokens). Use /compact to free space.`,
                                 });
                             }
                             break;
@@ -615,6 +676,32 @@ export function useAgentSession({
                 setPermissionPrompt(null);
             }
 
+            // After the loop completes, check if we need to clear context and re-submit
+            if (pendingClearContextRef.current && engineRef.current) {
+                pendingClearContextRef.current = false;
+                const planContent = await readPlan();
+                if (planContent) {
+                    const implementMsg = engineRef.current.clearContextAndImplement(planContent);
+                    setMessages([]);
+                    setStreamingText("");
+                    setToolCalls([]);
+                    setLastUsage(null);
+                    setSystemNotice({
+                        tone: "info",
+                        title: "Context cleared",
+                        body: "Starting fresh with the approved plan. Implementing...",
+                    });
+                    return submit(implementMsg);
+                }
+            }
+
+            // After plan rejection with feedback, re-submit the feedback so the model continues planning
+            if (pendingFeedbackRef.current && engineRef.current) {
+                const feedback = pendingFeedbackRef.current;
+                pendingFeedbackRef.current = null;
+                return submit(`User rejected the plan. Feedback: ${feedback}\n\nPlease revise your plan based on this feedback.`);
+            }
+
             return {
                 handled: true
             }
@@ -631,7 +718,7 @@ export function useAgentSession({
             totalUsage,
             systemNotice,
             permissionPrompt,
-            permissionMode: permissionMode ?? permissionSettings?.mode ?? "default",
+            permissionMode: activePermissionMode,
             currentModel,
         },
         actions: {

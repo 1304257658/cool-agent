@@ -8,6 +8,7 @@ import type { CommandSuggestion } from "../types.js";
 interface UsePromptInputOptions {
     isLoading: boolean;
     hasPermissionPrompt: boolean;
+    isPlanExitPrompt: boolean;
     onSubmit: (text: string) => Promise<unknown> | unknown;
     onExit: () => void;
     onInterrupt: () => boolean;
@@ -24,51 +25,55 @@ const ALL_COMMANDS: CommandSuggestion[] = [
     { name: "/exit", description: "Exit the session" },
 ];
 
-export function usePromptInput({
-    isLoading,
-    hasPermissionPrompt,
-    onSubmit,
-    onExit,
-    onInterrupt,
-    onPermissionDecision,
-}: UsePromptInputOptions) {
+export function usePromptInput(
+    params: UsePromptInputOptions) {
     const [inputValue, setInputValue] = useState("");
 
     const handleSubmit = useCallback(() => {
         const text = inputValue;
         setInputValue("");
-        void onSubmit(text);
-    }, [inputValue, onSubmit]);
+        void params.onSubmit(text);
+    }, [inputValue, params.onSubmit]);
 
     // 注册 Ink 键盘事件监听
     // 所有用户键盘输入都会经过此处理函数
     useInput((input, key) => {
         // Ctrl+C：中断当前请求
         if (key.ctrl && input === "c") {
-          onInterrupt();
+          params.onInterrupt();
           return;
         }
 
         // Ctrl+D：退出程序
         if (key.ctrl && input === "d") {
-          onExit();
+          params.onExit();
           return;
         }
 
-        if (hasPermissionPrompt) {
+        if (params.hasPermissionPrompt) {
             const normalized = input.toLowerCase();
-            if (normalized === "y") {
-                onPermissionDecision("allow_once");
-            } else if (normalized === "n") {
-                onPermissionDecision("deny");
-            } else if (normalized === "a") {
-                onPermissionDecision("allow_always");
+            if (params.isPlanExitPrompt) {
+                if (normalized === "y") {
+                    params.onPermissionDecision("allow_clear_context");
+                } else if (normalized === "k") {
+                    params.onPermissionDecision("allow_once");
+                } else if (normalized === "n") {
+                    params.onPermissionDecision("deny");
+                }
+            } else {
+                if (normalized === "y") {
+                    params.onPermissionDecision("allow_once");
+                } else if (normalized === "n") {
+                    params.onPermissionDecision("deny");
+                } else if (normalized === "a") {
+                    params.onPermissionDecision("allow_always");
+                }
             }
             return;
         }
 
         // 正在加载时忽略普通输入
-        if (isLoading) return;
+        if (params.isLoading) return;
 
         // 回车：提交消息
         if (key.return) {
