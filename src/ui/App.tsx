@@ -14,6 +14,7 @@ import { InputPrompt } from './components/InputPrompt.js';
 import { ConversationView } from './components/ConversationView.js';
 import { ToolCallList } from './components/ToolCallList.js';
 import { SystemPanel } from './components/SystemPanel.js';
+import { ModeSelector } from "./components/ModeSelector.js";
 import { StatusBar } from './components/StatusBar.js';
 import { DebugView } from './components/DebugView.js';
 import { CommandSuggestions } from './components/CommandSuggestions.js';
@@ -41,10 +42,11 @@ export function App({ model, systemPrompt, permissionMode, shouldResume, resumeS
   })
   const isPlanExitActive = Boolean(state.permissionPrompt?.isPlanExit);
 
-  const { inputValue, commandSuggestions } = usePromptInput({
+  const { inputValue, commandSuggestions, modeSuggestions } = usePromptInput({
     isLoading: state.isLoading,
     hasPermissionPrompt: Boolean(state.permissionPrompt) && !isPlanExitActive,
     isPlanExitPrompt: false,
+    permissionMode: state.permissionMode,
     onSubmit: actions.submit,
     onExit: exit,
     onInterrupt: actions.interrupt,
@@ -95,6 +97,7 @@ export function App({ model, systemPrompt, permissionMode, shouldResume, resumeS
       
       {/* ── 命令建议：展示可用命令 ── */}
       <CommandSuggestions items={commandSuggestions} />
+      <ModeSelector items={modeSuggestions} />
     </Box>
   );
 }
