@@ -57,6 +57,7 @@ export type AgenticLoopEvent =
         type: "tool_use_done";
         id: string;
         name: string;
+        input: Record<string, unknown>;
         result: ToolResult;
     }
     | {
@@ -115,6 +116,7 @@ export interface RunToolsOptions {
 export interface ToolExecutionResult {
     toolUseId: string;
     toolName: string;
+    toolInput: Record<string, unknown>;
     result: ToolResult;
 }
 
@@ -143,6 +145,7 @@ async function runTools(
     const permissionRequests: PermissionRequest[] = [];
     
     for (const block of toolUseBlocks) {
+        const toolInput = (block.input as Record<string, unknown>) ?? {};
         const tool = findToolByName(block.name);
         if (!tool) {
             const result: ToolResult = {
@@ -158,6 +161,7 @@ async function runTools(
             executions.push({
                 toolUseId: block.id,
                 toolName: block.name,
+                toolInput: toolInput,
                 result: result,
             })
             continue;
@@ -168,7 +172,7 @@ async function runTools(
             const liveMode = context.getPermissionMode?.() as PermissionMode | undefined;
             const permission = await checkPermission({
                 tool,
-                input: block.input as Record<string, unknown>,
+                input: toolInput,
                 cwd: context.cwd,
                 mode: liveMode ?? options.permissionMode,
                 sessionRules: options.sessionPermissionRules,
@@ -188,6 +192,7 @@ async function runTools(
                 executions.push({
                     toolUseId: block.id,
                     toolName: block.name,
+                    toolInput: toolInput,
                     result: result,
                 });
                 continue;
@@ -213,6 +218,7 @@ async function runTools(
                     executions.push({
                         toolUseId: block.id,
                         toolName: block.name,
+                        toolInput: toolInput,
                         result: result,
                     })
                     continue;
@@ -226,7 +232,7 @@ async function runTools(
                 }
             }
 
-            const rawResult = await tool.call(block.input as Record<string, any>, context);
+            const rawResult = await tool.call(toolInput, context);
             const result: ToolResult = {
                 ...rawResult,
                 content: truncateToolResult(rawResult.content, tool.maxResultSizeChars),
@@ -240,11 +246,15 @@ async function runTools(
             executions.push({
                 toolUseId: block.id,
                 toolName: block.name,
+                toolInput: toolInput,
                 result: result,
             })
         } catch (error: unknown) {
+            const errorMessage = error instanceof Error
+              ? (error.stack ?? error.message)
+              : String(error);
             const result: ToolResult = {
-                content: `Error: ${error instanceof Error ? error.message : String(error)}`,
+                content: `Error: ${errorMessage}`,
                 isError: true,
             }
             toolResults.push({
@@ -256,6 +266,7 @@ async function runTools(
             executions.push({
                 toolUseId: block.id,
                 toolName: block.name,
+                toolInput: toolInput,
                 result: result,
             })
         }
@@ -496,6 +507,7 @@ export async function* query(
                 type: "tool_use_done",
                 id: execution.toolUseId,
                 name: execution.toolName,
+                input: execution.toolInput,
                 result: execution.result,
             };
         }

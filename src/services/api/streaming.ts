@@ -9,6 +9,7 @@ import {
 } from './anthropicClient.js';
 import {
     ThinkingBlock,
+    ToolUseBlock,
     TextBlock,
     ContentBlock,
     Usage,
@@ -16,6 +17,7 @@ import {
     AssistantMessage,
 } from '../../types/message.js';
 import { createEmptyUsage } from '../../utils/usage.js';
+import { writeStreamDebug } from "../../utils/streamDebug.js";
 
 
 
@@ -61,138 +63,205 @@ export async function* streamMessage(
         signal: params.signal,
     });
 
+    // State accumulators — mirrors the pattern in claude.ts.
+    //
+    // IMPORTANT: tool_use input JSON must be tracked *per content-block index*.
+    // A single shared string breaks as soon as two tool_use blocks overlap —
+    // e.g. provider emits `content_block_start` for block 1 before the
+    // `content_block_stop` of block 0. In that case the shared buffer gets
+    // reset / cross-populated and tools end up with empty or swapped inputs.
     const contentBlocks: ContentBlock[] = [];
-    let currentToolInputJson = "";
+    const toolInputJsonByIndex = new Map<number, string>();
     const usage: Usage = createEmptyUsage();
     let stopReason = "";
 
-    for await (const event of stream) {
-        // // 调试输出
-        // const { createWriteStream } = await import("fs");
-        // const { join } = await import("path");
+    writeStreamDebug("request", {
+        model,
+        messageCount: params.messages.length,
+        toolNames: params.tools?.map((t) => t.name),
+    });
 
-        // // 定义文件路径和要写入的内容
-        // const filePath = join('./src', 'test', 'stream1.txt');
+    try {
+        for await (const event of stream) {
+            writeStreamDebug("event", event);
 
-        // // 创建一个可写文件流 (Writable Stream)
-        // const fileWriteStream = createWriteStream(filePath, { encoding: 'utf-8', flags: 'a' });
-
-        // try {
-        //     // 写入文件（默认采用 UTF-8 编码，如果文件存在会直接覆盖）
-        //     fileWriteStream.write(JSON.stringify(event) + '\n');
-        // } catch (error) {
-        //     console.error('写入文件时出错:', error);
-        // }
-
-        switch (event.type) {
-            case "message_start": {
-                // Capture initial usage (input token count + cache tokens)
-                if (event.message.usage) {
-                    usage.input_tokens = event.message.usage.input_tokens;
-                    usage.output_tokens = event.message.usage.output_tokens;
-                    const u = event.message.usage as unknown as Record<string, unknown>;
-                    if (typeof u.cache_creation_input_tokens === "number") {
-                        usage.cache_creation_input_tokens = u.cache_creation_input_tokens;
+            switch (event.type) {
+                case "message_start": {
+                    // Capture initial usage (input token count + cache tokens)
+                    if (event.message.usage) {
+                        usage.input_tokens = event.message.usage.input_tokens;
+                        usage.output_tokens = event.message.usage.output_tokens;
+                        const u = event.message.usage as unknown as Record<string, unknown>;
+                        if (typeof u.cache_creation_input_tokens === "number") {
+                            usage.cache_creation_input_tokens = u.cache_creation_input_tokens;
+                        }
+                        if (typeof u.cache_read_input_tokens === "number") {
+                            usage.cache_read_input_tokens = u.cache_read_input_tokens;
+                        }
                     }
-                    if (typeof u.cache_read_input_tokens === "number") {
-                        usage.cache_read_input_tokens = u.cache_read_input_tokens;
-                    }
-                }
-                yield {
-                    type: "message_start",
-                    messageId: event.message.id
-                };
-                break;
-            }
-
-            case "content_block_start":
-                if (event.content_block.type === "tool_use") {
-                    const b = event.content_block;
-                    contentBlocks[event.index] = {
-                        type: "tool_use",
-                        id: b.id,
-                        name: b.name,
-                        input: {},
-                    };
-                    currentToolInputJson = "";
                     yield {
-                        type: "tool_use_start",
-                        id: b.id,
-                        name: b.name
+                        type: "message_start",
+                        messageId: event.message.id
                     };
-                // } else if (event.content_block.type === "thinking") {
-                //     contentBlocks[event.index] = {
-                //         type: "thinking",
-                //         text: ""
-                //     };
-                } else if (event.content_block.type === "text") {
-                    contentBlocks[event.index] = {
-                        type: "text",
-                        text: ""
+                    break;
+                }
+
+                case "content_block_start": {
+                    const index = event.index;
+
+                    if (event.content_block.type === "text") {
+                        contentBlocks[index] = {
+                            type: "text",
+                            text: ""
+                        };
+                    } else if (event.content_block.type === "thinking") {
+                        // Preserve thinking blocks so we can echo them (with their
+                        // signature) back to the model on the next turn. Some providers
+                        // (e.g. MiniMax) and Anthropic's extended-thinking mode will
+                        // behave erratically — duplicating tool calls or emitting empty
+                        // inputs — if the prior turn's thinking is missing from history.
+                        const tb = event.content_block as { thinking?: string };
+                        contentBlocks[index] = {
+                            type: "thinking",
+                            thinking: tb.thinking ?? "",
+                        };
+                    } else if (event.content_block.type === "tool_use") {
+                        const block = event.content_block;
+                        // Some providers pre-populate the full input object on start
+                        // instead of streaming it via input_json_delta. Preserve whatever
+                        // is already there so we don't overwrite a valid non-empty input
+                        // with `{}` at content_block_stop.
+                        const seedInput =
+                        block.input && typeof block.input === "object"
+                        ? (block.input as Record<string, unknown>)
+                        : {};
+                        contentBlocks[index] = {
+                            type: "tool_use",
+                            id: block.id,
+                            name: block.name,
+                            input: seedInput,
+                        };
+                        yield {
+                            type: "tool_use_start",
+                            id: block.id,
+                            name: block.name
+                        };
+                    }
+                    break;
+                }
+                case "content_block_delta": {
+                    const delta = event.delta;
+                    const index = event.index;
+
+                    if (event.delta.type === "text_delta") {
+                        (contentBlocks[index] as TextBlock).text += event.delta.text;
+                        yield { 
+                            type: "text", 
+                            text: event.delta.text 
+                        };
+                    } else if ((delta as { type: string }).type === "thinking_delta") {
+                        const block = contentBlocks[index] as ThinkingBlock | undefined;
+                        if (block && block.type === "thinking") {
+                            block.thinking += (delta as unknown as { thinking: string }).thinking ?? "";
+                        }
+                    } else if ((delta as { type: string }).type === "signature_delta") {
+                        const block = contentBlocks[index] as ThinkingBlock | undefined;
+                        if (block && block.type === "thinking") {
+                            const sig = (delta as unknown as { signature: string }).signature;
+                            block.signature = (block.signature ?? "") + (sig ?? "");
+                        }
+                    } else if (delta.type === "input_json_delta") {
+                        // Accumulate tool input JSON **per block index** — blocks may
+                        // overlap on some providers, so we must never share one buffer.
+                        const prev = toolInputJsonByIndex.get(index) ?? "";
+                        toolInputJsonByIndex.set(index, prev + delta.partial_json);
+                        const idBlock = contentBlocks[index];
+                        if (idBlock && idBlock.type === "tool_use") {
+                            yield {
+                                type: "tool_use_input",
+                                id: (idBlock as ToolUseBlock).id,
+                                partial_json: delta.partial_json,
+                            };
+                        }
+                    }
+                    break;
+                }
+                case "content_block_stop": {
+                    const index = event.index;
+                    const block = contentBlocks[index];
+                    const accumulated = toolInputJsonByIndex.get(index);
+                    if (block && block.type === "tool_use" && accumulated) {
+                        try {
+                            block.input = JSON.parse(accumulated);
+                        } catch {
+                            // Keep the raw string so callers can surface it for debugging
+                            // rather than silently pretending the call had no input.
+                            block.input = { _raw: accumulated };
+                        }
+                    }
+                    toolInputJsonByIndex.delete(index);
+                    break;
+                }
+                case "message_delta": {
+                    if (event.usage) {
+                        usage.output_tokens = event.usage.output_tokens;
+                        // Some providers (e.g. MiniMax) report input_tokens in message_delta
+                        // rather than message_start — pick it up as a fallback.
+                        const du = event.usage as unknown as Record<string, unknown>;
+                        if (typeof du.input_tokens === "number" && du.input_tokens > 0) {
+                            usage.input_tokens = du.input_tokens;
+                        }
+                        if (typeof du.cache_creation_input_tokens === "number") {
+                            usage.cache_creation_input_tokens = du.cache_creation_input_tokens;
+                        }
+                        if (typeof du.cache_read_input_tokens === "number") {
+                            usage.cache_read_input_tokens = du.cache_read_input_tokens;
+                        }
+                    }
+                    stopReason = event.delta.stop_reason ?? "";
+                    break;
+                }
+
+                case "message_stop":
+                    yield {
+                        type: "message_done",
+                        stopReason, usage
                     };
-                }
-                break;
-
-            case "content_block_delta":
-                if (event.delta.type === "input_json_delta") {
-                    currentToolInputJson += event.delta.partial_json;
-                // } else if (event.delta.type === "thinking_delta") {
-                //     (contentBlocks[event.index] as ThinkingBlock).text += event.delta.thinking;
-                //     yield { 
-                //         type: "thinking", 
-                //         text: event.delta.thinking 
-                //     };
-                } else if (event.delta.type === "text_delta") {
-                    (contentBlocks[event.index] as TextBlock).text += event.delta.text;
-                    yield { 
-                        type: "text", 
-                        text: event.delta.text 
-                    };
-                }
-                break;
-
-            case "content_block_stop":
-                // 工具参数的 JSON 是碎片化到达的，在 block 结束时才能 parse
-                const block = contentBlocks[event.index];
-                if (block?.type === "tool_use" && currentToolInputJson) {
-                    block.input = JSON.parse(currentToolInputJson);
-                    currentToolInputJson = "";
-                }
-                break;
-
-            case "message_delta": {
-                if (event.usage) {
-                    usage.output_tokens = event.usage.output_tokens;
-                    // Some providers (e.g. MiniMax) report input_tokens in message_delta
-                    // rather than message_start — pick it up as a fallback.
-                    const du = event.usage as unknown as Record<string, unknown>;
-                    if (typeof du.input_tokens === "number" && du.input_tokens > 0) {
-                        usage.input_tokens = du.input_tokens;
-                    }
-                    if (typeof du.cache_creation_input_tokens === "number") {
-                        usage.cache_creation_input_tokens = du.cache_creation_input_tokens;
-                    }
-                    if (typeof du.cache_read_input_tokens === "number") {
-                        usage.cache_read_input_tokens = du.cache_read_input_tokens;
-                    }
-                }
-                stopReason = event.delta.stop_reason ?? "";
-                break;
+                    break;
             }
-
-            case "message_stop":
-                yield {
-                    type: "message_done",
-                    stopReason, usage
-                };
-                break;
         }
+    } catch (error) {
+        writeStreamDebug("stream_error", { message: error instanceof Error ? error.message : String(error) });
+        // Yield the error as a stream event so the caller can handle it
+        yield {
+            type: "error",
+            error: error instanceof Error ? error : new Error(String(error)),
+        };
     }
 
+    writeStreamDebug("assembled", {
+        stopReason,
+        blockCount: contentBlocks.filter(Boolean).length,
+        blocks: contentBlocks.filter(Boolean).map((b) => {
+            if (b.type === "tool_use") {
+                return { type: "tool_use", id: b.id, name: b.name, input: b.input };
+            }
+            if (b.type === "thinking") {
+                return {
+                type: "thinking",
+                length: (b as ThinkingBlock).thinking.length,
+                hasSignature: Boolean((b as ThinkingBlock).signature),
+                };
+            }
+            return { type: "text", length: (b as TextBlock).text.length };
+        }),
+    });
+
+    // Return the fully assembled assistant message
     return {
         assistantMessage: {
             role: "assistant",
-            content: contentBlocks,
+            content: contentBlocks.filter((block): block is ContentBlock => Boolean(block)),
         },
         usage,
         stopReason,

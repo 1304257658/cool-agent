@@ -1,7 +1,14 @@
 // 四种内容块类型
+/**
+ * Extended-thinking content block, as streamed by Anthropic (and
+ * Anthropic-compatible endpoints like MiniMax) when a model returns
+ * internal reasoning.  The `signature` field is required by the API
+ * when we echo the message back on the next turn.
+ */
 export interface ThinkingBlock {
     type: "thinking";
-    text: string;
+    thinking: string;
+    signature?: string;
 }
 
 export interface TextBlock {

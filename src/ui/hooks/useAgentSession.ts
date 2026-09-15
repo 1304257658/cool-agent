@@ -37,6 +37,7 @@ import { QueryEngine } from '../../core/queryEngine.js';
 import type {
     TokenWarningResult
 } from '../../context/autoCompact.js'
+import { formatToolInputPreview } from '../utils/toolCardFormat.js';
 
 
 interface UseAgentSessionOptions {
@@ -51,23 +52,34 @@ interface SubmitResult {
   handled: boolean;
 }
 
+interface ToolCallCompletion {
+  resultLength: number;
+  isError?: boolean;
+  displayName?: string;
+  displayHint?: string;
+  inputPreview?: string;
+  errorMessage?: string;
+}
+
+/**
+ * Mark a specific tool call card as complete, identified by its unique
+ * tool_use id. We must NOT match by `name` alone — when an assistant turn
+ * fires several parallel calls of the same tool (e.g. three Reads), a
+ * name-based match would either update every pending card with the first
+ * result that lands, or silently drop subsequent results.
+ */
 function markToolCallComplete(
   toolCalls: ToolCallInfo[],
-  name: string,
-  resultLength: number,
-  isError?: boolean,
-  displayName?: string,
-  displayHint?: string,
+  id: string,
+  completion: ToolCallCompletion,
 ): ToolCallInfo[] {
   // 遍历工具调用列表，找到匹配名称且尚未完成的工具调用
   // 更新其 resultLength 和 isError 状态，返回新的工具调用数组
   return toolCalls.map((toolCall) => 
-    toolCall.name === name
-    // 检查此工具调用是否尚未完成（resultLength 未定义）
-    && toolCall.resultLength === undefined
+    toolCall.id === id
     // 如果条件匹配，更新工具调用的 resultLength 和 isError 状态
     // 否则保持原状态不变
-    ? { ...toolCall, resultLength, isError, displayName, displayHint }
+    ? { ...toolCall, ...completion }
     : toolCall,
   );
 }
@@ -450,7 +462,8 @@ export function useAgentSession({
                             break;
                         case "tool_use_start":
                             setToolCalls((prev) => [...prev, {
-                                name: value.name
+                                id: value.id,
+                                name: value.name,
                             }]);
                             await appendTranscriptEntry(toolContext.cwd, sessionIdRef.current, {
                                 type: "tool_event",
@@ -471,13 +484,19 @@ export function useAgentSession({
                             break;
                         case "tool_use_done": {
                             const isPlanFileWrite = (value.name === "Write" || value.name === "Edit") && value.result.content.includes(getPlansDirectory());
+                            const inputPreview = formatToolInputPreview(value.input);
+                            const errorMessage = value.result.isError ? value.result.content : undefined;
                             setToolCalls((prev) => markToolCallComplete(
                                     prev,
-                                    value.name,
-                                    value.result.content.length,
-                                    value.result.isError,
-                                    isPlanFileWrite ? "Updated plan" : undefined,
-                                    isPlanFileWrite ? "/plan to preview" : undefined,
+                                    value.id,
+                                    {
+                                        resultLength: value.result.content.length,
+                                        isError: value.result.isError,
+                                        displayName: isPlanFileWrite ? "Updated plan" : undefined,
+                                        displayHint: isPlanFileWrite ? "/plan to preview" : undefined,
+                                        inputPreview: inputPreview,
+                                        errorMessage: errorMessage,
+                                    }
                                 ),
                             );
                             await appendTranscriptEntry(toolContext.cwd, sessionIdRef.current, {
@@ -503,6 +522,12 @@ export function useAgentSession({
                         case "tool_result_message":
                             setSpinnerLabel("Thinking");
                             setPermissionPrompt(null);
+                            // Tool results are now committed to `messages` — the cards
+                            // will render inline in ConversationView from here on, so we
+                            // drop the live in-flight cards to avoid duplication and, more
+                            // importantly, to keep the final assistant text rendered
+                            // BELOW its tool calls (not above them).
+                            setToolCalls([]);
                             await appendTranscriptEntry(toolContext.cwd, sessionIdRef.current, {
                                 type: "message",
                                 timestamp: getTimestamp(),
