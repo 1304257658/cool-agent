@@ -14,6 +14,7 @@ import { InputPrompt } from './components/InputPrompt.js';
 import { ConversationView } from './components/ConversationView.js';
 import { ToolCallList } from './components/ToolCallList.js';
 import { SystemPanel } from './components/SystemPanel.js';
+import { TodoList } from "./components/TodoList.js";
 import { ModeSelector } from "./components/ModeSelector.js";
 import { StatusBar } from './components/StatusBar.js';
 import { DebugView } from './components/DebugView.js';
@@ -42,6 +43,14 @@ export function App({ model, systemPrompt, permissionMode, shouldResume, resumeS
   })
   const isPlanExitActive = Boolean(state.permissionPrompt?.isPlanExit);
 
+  // Surface the current todo's activeForm via the global StatusBar spinner.
+  // This mirrors source code behavior (Spinner.tsx: `leaderVerb =
+  // currentTodo?.activeForm ?? randomVerb`) and keeps the entire app at
+  // exactly ONE animation source — adding per-row spinners caused severe
+  // flicker because every additional setInterval forces another full
+  // terminal repaint cycle on top of the streaming text updates.
+  const inProgressTodo = state.todos.find((t) => t.status === "in_progress");
+  const effectiveSpinnerLabel = inProgressTodo?.activeForm ?? state.spinnerLabel;
   const { inputValue, commandSuggestions, modeSuggestions } = usePromptInput({
     isLoading: state.isLoading,
     hasPermissionPrompt: Boolean(state.permissionPrompt) && !isPlanExitActive,
@@ -63,6 +72,9 @@ export function App({ model, systemPrompt, permissionMode, shouldResume, resumeS
       {/* ── 对话历史：遍历 messages 渲染 user/assistant 消息 ── */}
       <ConversationView messages={state.messages} />
 
+      {/* ── 待办事项列表：展示当前任务状态 ── */}
+      <TodoList todos={state.todos} />
+      
       {/* ── 工具调用指示器：展示正在调用或已完成的工具 ── */}
       <ToolCallList toolCalls={state.toolCalls} />
 
@@ -72,7 +84,7 @@ export function App({ model, systemPrompt, permissionMode, shouldResume, resumeS
       <StatusBar
         isLoading={state.isLoading}
         // Spinner：API 请求中且尚无流式文本时显示加载动画
-        spinnerLabel={state.spinnerLabel}
+        spinnerLabel={effectiveSpinnerLabel}
         // 流式文本：API 正在回复时实时显示增量文本
         streamingText={state.streamingText}
         lastUsage={state.lastUsage}

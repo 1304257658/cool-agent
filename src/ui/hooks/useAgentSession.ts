@@ -38,6 +38,8 @@ import type {
     TokenWarningResult
 } from '../../context/autoCompact.js'
 import { formatToolInputPreview } from '../utils/toolCardFormat.js';
+import { clearTodos, getTodos, subscribeTodos } from "../../state/todoStore.js";
+import type { TodoItem } from "../../types/todo.js";
 
 
 interface UseAgentSessionOptions {
@@ -169,6 +171,7 @@ export function useAgentSession({
     const [permissionSettings, setPermissionSettings] = useState<PermissionSettings | null>(null);
     const [currentModel, setCurrentModel] = useState(model);
     const [activePermissionMode, setActivePermissionMode] = useState<string>(permissionMode ?? "default");
+    const [todos, setTodosState] = useState<TodoItem[]>([]);
 
     const permissionResolverRef = useRef<((decision: PermissionDecision) => void) | null>(null);
     const pendingClearContextRef = useRef(false);
@@ -179,9 +182,58 @@ export function useAgentSession({
     const latestSessionRef = useRef<string>("");
     const sessionPathRef = useRef<string>("");
 
+
+    // Streaming-text throttling. SSE chunks can arrive at >100 Hz from fast
+    // models, and every setStreamingText forces Ink to repaint the whole
+    // frame — combined with the TodoList / ToolCallList that sit above it,
+    // the unbatched updates caused visible flicker and "untouchable" terminal
+    // scrolling. We coalesce chunks into a 30ms window (≈33 fps) — fast
+    // enough to look live, slow enough to keep the UI usable.
+    const pendingTextRef = useRef<string>("");
+    const flushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const flushPendingText = useCallback(() => {
+        flushTimerRef.current = null;
+        if (pendingTextRef.current) {
+            const chunk = pendingTextRef.current;
+            pendingTextRef.current = "";
+            setStreamingText((prev) => prev + chunk);
+        }
+    }, []);
+    const cancelPendingText = useCallback(() => {
+        if (flushTimerRef.current) {
+            clearTimeout(flushTimerRef.current);
+            flushTimerRef.current = null;
+        }
+        pendingTextRef.current = "";
+    }, []);
+
+    // Always release the timer on unmount so we don't leak across hot reloads.
+    useEffect(() => () => cancelPendingText(), [cancelPendingText]);
+    // `sessionId` is exposed as a live getter so tools always see the
+    // current sessionIdRef value. This matters during /resume — the ref is
+    // mutated *after* this hook has memoized the toolContext, and a baked-in
+    // value would silently route TodoWrite writes to the old (orphan) key
+    // while the UI subscriber filters on the new sessionId, leaving the
+    // todo panel permanently empty.
     const toolContext = useMemo<ToolContext>(() => ({
         cwd: process.cwd(),
+        get sessionId() {
+            return sessionIdRef.current;
+        },
     }), []);
+
+    // Subscribe to TodoWrite updates. The store is global (mirrors source's
+    // `appState.todos` map), so we filter by our own sessionId. When the
+    // session is restored or cleared we also re-pull the snapshot.
+    useEffect(() => {
+        setTodosState(getTodos(sessionIdRef.current));
+        const unsubscribe = subscribeTodos((sid, next) => {
+        if (sid === sessionIdRef.current) {
+            setTodosState(next);
+        }
+        });
+        return unsubscribe;
+    }, []);
 
     useEffect(() => {
         void loadPermissionSettings(process.cwd())
@@ -318,6 +370,7 @@ export function useAgentSession({
         }
 
         setIsLoading(false);
+        cancelPendingText();
         setStreamingText("");
         setSystemNotice({
             tone: "info",
@@ -325,7 +378,7 @@ export function useAgentSession({
             body: "Use /exit, /quit, /bye, or Ctrl+D to exit."
         });
         return true;
-    }, []);
+    }, [cancelPendingText]);
 
     const resolvePermission = useCallback((decision: PermissionDecision, feedback?: string) => {
         if (!permissionResolverRef.current) {
@@ -411,6 +464,7 @@ export function useAgentSession({
             const isSlashCommand = trimmed.startsWith("/");
 
             // 重置 UI 状态
+            cancelPendingText();
             setStreamingText("");
             setToolCalls([]);
             setSystemNotice(null);
@@ -458,7 +512,14 @@ export function useAgentSession({
 
                     switch (value.type) {
                         case "text":
-                            setStreamingText((prev) => prev + value.text);
+                            // Coalesce rapid SSE chunks into a 30ms window. Without this
+                            // every chunk forces a full Ink frame repaint, and combined
+                            // with the TodoList / ToolCallList above it the terminal
+                            // flickers and refuses to scroll.
+                            pendingTextRef.current += value.text;
+                            if (!flushTimerRef.current) {
+                                flushTimerRef.current = setTimeout(flushPendingText, 30);
+                            }
                             break;
                         case "tool_use_start":
                             setToolCalls((prev) => [...prev, {
@@ -511,6 +572,10 @@ export function useAgentSession({
                             break;
                         }
                         case "assistant_message":
+                            // The full assistant text is committed to `messages` and will
+                            // render via ConversationView. Drop any unflushed pending
+                            // chunk so it can't overwrite the cleared streaming line.
+                            cancelPendingText();
                             setStreamingText("");
                             await appendTranscriptEntry(toolContext.cwd, sessionIdRef.current, {
                                 type: "message",
@@ -619,10 +684,12 @@ export function useAgentSession({
                             setActivePermissionMode(value.mode);
                             break;
                         case "session_cleared":
+                            cancelPendingText();
                             setMessages([]);
                             setStreamingText("");
                             setToolCalls([]);
                             setLastUsage(null);
+                            clearTodos(sessionIdRef.current);
                             break;
                         case "token_warning": {
                             const w = value.warning as TokenWarningResult;
@@ -707,10 +774,12 @@ export function useAgentSession({
                 const planContent = await readPlan();
                 if (planContent) {
                     const implementMsg = engineRef.current.clearContextAndImplement(planContent);
+                    cancelPendingText();
                     setMessages([]);
                     setStreamingText("");
                     setToolCalls([]);
                     setLastUsage(null);
+                    clearTodos(sessionIdRef.current);
                     setSystemNotice({
                         tone: "info",
                         title: "Context cleared",
@@ -730,7 +799,7 @@ export function useAgentSession({
             return {
                 handled: true
             }
-        }, [onExit, toolContext.cwd]);
+        }, [onExit, toolContext.cwd, cancelPendingText, flushPendingText]);
     
     return {
         state: {
@@ -739,6 +808,7 @@ export function useAgentSession({
             spinnerLabel,
             streamingText,
             toolCalls,
+            todos,
             lastUsage,
             totalUsage,
             systemNotice,

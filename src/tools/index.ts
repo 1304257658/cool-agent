@@ -13,6 +13,7 @@ import { globTool } from "./globTool.js";
 import { memoryWriteTool } from "./memoryWriteTool.js";
 import { enterPlanModeTool } from "./enterPlanModeTool.js";
 import { exitPlanModeTool } from "./exitPlanModeTool.js";
+import { todoWriteTool } from "./todoWriteTool.js";
 import type { PermissionMode } from "../permissions/permissions.js";
 
 
@@ -45,6 +46,7 @@ const BUILT_IN_TOOLS: Tool[] = [
     grepTool,
     globTool,
     memoryWriteTool,
+    todoWriteTool,
     enterPlanModeTool,
     exitPlanModeTool
 ];
