@@ -32,6 +32,12 @@ import { summarizePermissionRequest } from '../permissions/permissions.js';
 import { initSessionStorage } from "../session/storage.js";
 import { getPlanFilePath, planExists as checkPlanExists } from "../context/plans.js";
 import { getPlanModeAttachment, getPlanModeExitAttachment } from "../context/planAttachments.js";
+import {
+  getTaskMode,
+  setTaskMode,
+  type TaskMode,
+} from "../state/taskModeStore.js";
+import { getTaskListId, resetTaskList } from "../state/taskStore.js";
 
 
 export type QueryEngineEvent = 
@@ -64,6 +70,11 @@ export type QueryEngineEvent =
         type: "model_changed";
         model: string;
         source: "default" | "session";
+    }
+    | {
+        type: "task_mode_changed";
+        mode: TaskMode;
+        previousMode: TaskMode;
     }
     | {
         type: "session_cleared";
@@ -219,7 +230,7 @@ export class QueryEngine {
                 yield {
                     type: "command",
                     kind: "info",
-                message: "Commands: /help /clear /cost /model [name|default] /mode [default|plan|auto] /history /compact /exit /quit /bye",
+                message: "Commands: /help /clear /cost /model [name|default] /mode [default|plan|auto] /tasks [task|todo|reset] /history /compact /exit /quit /bye",
                 };
                 return { handled: true };
             case "mode": {
@@ -258,6 +269,59 @@ export class QueryEngine {
                 return {
                     handled: true,
                 };
+            }
+            case "tasks": {
+                const nextMode = args[0]?.trim();
+                const current = getTaskMode();
+                if (!nextMode) {
+                    yield {
+                        type: "command",
+                        kind: "info",
+                        message: [
+                        "Task system status",
+                        `- Active: ${current} (${current === "task" ? "persistent graph (Task V2)" : "session memory (TodoWrite V1)"})`,
+                        "- Usage: /tasks task      Use persistent Task V2 tools (default)",
+                        "- Usage: /tasks todo      Use in-memory TodoWrite V1",
+                        "- Usage: /tasks reset     Delete every task in the current task list",
+                        ].join("\n"),
+                    };
+                    return { handled: true };
+                }
+                if (nextMode === "reset") {
+                    const taskListId = getTaskListId(this.toolContext.sessionId ?? "default");
+                    try {
+                        await resetTaskList(taskListId);
+                        yield { type: "command", kind: "info", message: `Task list '${taskListId}' has been reset.` };
+                    } catch (error) {
+                        const msg = error instanceof Error ? error.message : String(error);
+                        yield { type: "command", kind: "error", message: `Failed to reset task list: ${msg}` };
+                    }
+                    return { handled: true };
+                }
+                if (nextMode !== "task" && nextMode !== "todo") {
+                    yield {
+                        type: "command",
+                        kind: "error",
+                        message: `Invalid task mode: ${nextMode}. Must be task, todo, or reset.`,
+                    };
+                    return { handled: true };
+                }
+                if (nextMode === current) {
+                    yield {
+                        type: "command",
+                        kind: "info",
+                        message: `Task system is already '${current}'.`,
+                    };
+                    return { handled: true };
+                }
+                setTaskMode(nextMode);
+                yield { type: "task_mode_changed", mode: nextMode, previousMode: current };
+                yield {
+                    type: "command",
+                    kind: "info",
+                    message: `Task system changed: ${current} → ${nextMode}.`,
+                };
+                return { handled: true };
             }
             case "clear":
                 this.messages = [];

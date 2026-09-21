@@ -15,6 +15,7 @@ import { ConversationView } from './components/ConversationView.js';
 import { ToolCallList } from './components/ToolCallList.js';
 import { SystemPanel } from './components/SystemPanel.js';
 import { TodoList } from "./components/TodoList.js";
+import { TaskList } from "./components/TaskList.js";
 import { ModeSelector } from "./components/ModeSelector.js";
 import { StatusBar } from './components/StatusBar.js';
 import { DebugView } from './components/DebugView.js';
@@ -43,19 +44,27 @@ export function App({ model, systemPrompt, permissionMode, shouldResume, resumeS
   })
   const isPlanExitActive = Boolean(state.permissionPrompt?.isPlanExit);
 
-  // Surface the current todo's activeForm via the global StatusBar spinner.
-  // This mirrors source code behavior (Spinner.tsx: `leaderVerb =
-  // currentTodo?.activeForm ?? randomVerb`) and keeps the entire app at
-  // exactly ONE animation source — adding per-row spinners caused severe
-  // flicker because every additional setInterval forces another full
-  // terminal repaint cycle on top of the streaming text updates.
+  // Surface the current in-progress item's activeForm via the global
+  // StatusBar spinner. This mirrors source code behavior (Spinner.tsx:
+  // `leaderVerb = currentTodo?.activeForm ?? randomVerb`) and keeps the
+  // entire app at exactly ONE animation source — adding per-row spinners
+  // caused severe flicker because every additional setInterval forces
+  // another full terminal repaint cycle on top of streaming text.
+  //
+  // In task mode we read from the Task graph; in todo mode we keep the
+  // V1 source. Either way, the spinner label comes from exactly one
+  // place at a time.
   const inProgressTodo = state.todos.find((t) => t.status === "in_progress");
-  const effectiveSpinnerLabel = inProgressTodo?.activeForm ?? state.spinnerLabel;
-  const { inputValue, commandSuggestions, modeSuggestions } = usePromptInput({
+  const inProgressTask = state.tasks.find((t) => t.status === "in_progress");
+  const effectiveSpinnerLabel = state.taskMode === "task"
+    ? (inProgressTask?.activeForm ?? inProgressTask?.subject ?? state.spinnerLabel)
+    : (inProgressTodo?.activeForm ?? state.spinnerLabel);
+  const { inputValue, commandSuggestions, modeSuggestions, taskModeSuggestions } = usePromptInput({
     isLoading: state.isLoading,
     hasPermissionPrompt: Boolean(state.permissionPrompt) && !isPlanExitActive,
     isPlanExitPrompt: false,
     permissionMode: state.permissionMode,
+    taskMode: state.taskMode,
     onSubmit: actions.submit,
     onExit: exit,
     onInterrupt: actions.interrupt,
@@ -73,7 +82,9 @@ export function App({ model, systemPrompt, permissionMode, shouldResume, resumeS
       <ConversationView messages={state.messages} />
 
       {/* ── 待办事项列表：展示当前任务状态 ── */}
-      <TodoList todos={state.todos} />
+      {state.taskMode === "task"
+        ? <TaskList tasks={state.tasks} />
+        : <TodoList todos={state.todos} />}
       
       {/* ── 工具调用指示器：展示正在调用或已完成的工具 ── */}
       <ToolCallList toolCalls={state.toolCalls} />
@@ -110,6 +121,10 @@ export function App({ model, systemPrompt, permissionMode, shouldResume, resumeS
       {/* ── 命令建议：展示可用命令 ── */}
       <CommandSuggestions items={commandSuggestions} />
       <ModeSelector items={modeSuggestions} />
+      <ModeSelector
+        items={taskModeSuggestions}
+        title={`select task system (↑↓ navigate, Enter confirm, 1-${taskModeSuggestions.length || 2} shortcut)`}
+      />
     </Box>
   );
 }
