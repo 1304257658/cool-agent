@@ -3,7 +3,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 // Anthropic Messages API 的类型定义
 import type { MessageParam } from "@anthropic-ai/sdk/resources/messages.js";
 
-import { getTimestamp } from '../../utils/loadEnv.js';
+import { getTimestamp } from '../../utils/timestamp.js';
 import { buildTokenBudgetSnapshot } from "../../utils/tokens.js";
 import { createEmptyUsage } from "../../utils/usage.js";
 import {
@@ -136,6 +136,18 @@ function buildCommandNotice(
         return {
             tone: kind,
             title: message.startsWith("Task system status") ? "Task system" : "Task system updated",
+            body: message,
+        };
+    }
+
+    if (
+        message.startsWith("MCP Servers") ||
+        message.startsWith("MCP tools from") ||
+        message.startsWith("MCP server '")
+    ) {
+        return {
+            tone: kind,
+            title: "MCP",
             body: message,
         };
     }

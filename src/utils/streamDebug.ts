@@ -4,7 +4,7 @@
  * Opt-in via the `EASY_AGENT_DEBUG_STREAM=1` environment variable.
  * When enabled, every raw SSE event — plus request / assembled / error
  * markers — is appended as a single-line JSON record to
- * `~/.easy-agent/stream-debug.log`.
+ * `~/.cool-agent/stream-debug.log`.
  *
  * This is invaluable when debugging Anthropic-compatible endpoints
  * (MiniMax, LiteLLM, OpenAI → Anthropic shims, etc.) whose streaming
@@ -15,8 +15,8 @@
  */
 
 import { appendFileSync, mkdirSync } from "node:fs";
-import { homedir } from "node:os";
-import { join } from "node:path";
+import { getAgentHome, getStreamDebugLogPath } from "./paths.js";
+
 
 const DEBUG_STREAM = process.env.EASY_AGENT_DEBUG_STREAM === "1";
 
@@ -24,13 +24,12 @@ let cachedLogPath: string | null = null;
 
 function resolveLogPath(): string {
   if (cachedLogPath) return cachedLogPath;
-  const dir = join(homedir(), ".easy-agent");
   try {
-    mkdirSync(dir, { recursive: true });
+    mkdirSync(getAgentHome(), { recursive: true });
   } catch {
     /* ignore — appendFileSync will surface any real failure */
   }
-  cachedLogPath = join(dir, "stream-debug.log");
+  cachedLogPath = getStreamDebugLogPath();
   return cachedLogPath;
 }
 

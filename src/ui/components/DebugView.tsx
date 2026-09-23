@@ -5,7 +5,7 @@ import { Box, Text } from 'ink';
 // Anthropic Messages API 的类型定义
 import type { MessageParam } from "@anthropic-ai/sdk/resources/messages.js";
 
-import { AGENT_HOME } from "../../utils/loadEnv.js";
+import { AGENT_HOME } from "../../utils/paths.js";
 
 
 // ─────────────────────────────────────────────────────────────────────

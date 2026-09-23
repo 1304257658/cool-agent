@@ -1,8 +1,10 @@
 #!/usr/bin/env node
-import { loadEnv, AGENT_NAME } from "../utils/loadEnv.js";
+import { loadEnv } from "../utils/loadEnv.js";
 loadEnv();
+import { getAgentName } from "../utils/paths.js";
 import { buildSystemPrompt, renderSystemPrompt } from "../context/systemPrompt.js";
 import type { PermissionMode } from "../permissions/permissions.js";
+import { logError } from "../utils/log.js"
 
 const VERSION = "0.1.1";
 
@@ -25,25 +27,42 @@ async function renderCli(model?: string, systemPrompt?: string, permissionMode?:
     const { render } = await import("ink");
     const { App } = await import("../ui/App.js");
     const { DEFAULT_MODEL, SYSTEM_PROMPT } = await import("../services/api/anthropicClient.js");
+    const { bootstrapMcp } = await import("../services/mcp/bootstrap.js");
 
     const resolvedModel = model ?? DEFAULT_MODEL;
+
+    // Kick off MCP server connections IN THE BACKGROUND. The bootstrap
+    // function seeds `pending` registry entries synchronously, then connects
+    // each server in parallel — a slow `npx -y @mcp/server-foo` cold-start
+    // (which can take 10–30s on first run while npm downloads the package)
+    // would otherwise leave the terminal black, because we wouldn't render
+    // the UI until it returned.
+    //
+    // Trade-off: if the user submits a query before MCP tools land, the
+    // model just doesn't see them yet. They'll appear on the next turn.
+    // This matches Claude Code's behavior — its `prefetchAllMcpResources`
+    // runs inside `useManageMCPConnections` (a React useEffect), so the
+    // REPL is interactive from frame 1 too.
+    void bootstrapMcp(process.cwd()).catch((error) => {
+        logError(`MCP bootstrap failed: ${(error as Error).message}`);
+    });
 
     const { waitUntilExit } = render(
         React.createElement(App, { model: resolvedModel, systemPrompt: systemPrompt ?? SYSTEM_PROMPT, permissionMode, shouldResume, resumeSessionId }), { exitOnCtrlC: false }
     );
     await waitUntilExit();
 
-    console.log(`Hello, ${AGENT_NAME} CLI!`);
+    console.log(`Hello, ${getAgentName()} CLI!`);
 }
 
 async function main(): Promise<void> {
     if (process.argv.includes("--version") || process.argv.includes("-v")) {
-        console.log(`${AGENT_NAME} v${VERSION}`);
+        console.log(`${getAgentName()} v${VERSION}`);
         process.exit(0);
     }
     if (process.argv.includes("--help") || process.argv.includes("-h")) {
         console.log(`
-${AGENT_NAME} v${VERSION} — Terminal-native agentic coding system
+${getAgentName()} v${VERSION} — Terminal-native agentic coding system
 
 Usage:
   agent [options]
@@ -63,6 +82,7 @@ Commands (in REPL):
   /clear                      Clear conversation history
   /mode [default|plan|auto]   Inspect or switch permission mode
   /tasks [task|todo|reset]    Switch task system or reset the task graph
+  /mcp [tools|reconnect <n>]  Inspect or reconnect MCP servers
   /history                    Show session history
   /compact                    Compact conversation context
   /exit, /quit, /bye          Exit the REPL

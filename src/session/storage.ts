@@ -4,7 +4,8 @@ import * as fs from "node:fs/promises";
 import type { Dirent } from "node:fs";
 import { MessageParam } from "@anthropic-ai/sdk/resources";
 
-import { AGENT_HOME, getTimestamp } from "../utils/loadEnv.js";
+import { getAgentHome } from "../utils/paths.js";
+import { getTimestamp } from "../utils/timestamp.js";
 import { getProjectPathInfo } from "../utils/getProjectPathInfo.js";
 import { Usage } from "../types/message.js";
 import { createEmptyUsage } from "../utils/usage.js";
@@ -113,7 +114,7 @@ export async function getSessionPaths(cwd: string, sessionId: string): Promise<S
     const projectSessionDir = path.join(projectDir, "sessions");
 
     return {
-        rootDir: AGENT_HOME,
+        rootDir: getAgentHome(),
         projectSessionDir,
         transcriptPath: path.join(projectSessionDir, `${sessionId}.jsonl`),
         latestPath: path.join(projectSessionDir, "latest"),

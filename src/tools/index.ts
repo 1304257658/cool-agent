@@ -1,3 +1,12 @@
+/**
+ * Tool Registry — Central registry for all available tools.
+ *
+ * MCP tools are registered at startup via `registerMcpTools()`.
+ * Built-in tools live in BUILTIN_TOOLS (compile-time list); MCP tools are
+ * collected separately so they can be reset/refreshed independently when
+ * the user runs `/mcp reconnect`.
+ */
+
 // Anthropic SDK 顶层类型，用于 toolsApiParams 的类型标注
 import type Anthropic from "@anthropic-ai/sdk";
 // 工具系统：Tool 接口定义了工具的 name/description/call 等生命周期
@@ -59,14 +68,29 @@ const BUILT_IN_TOOLS: Tool[] = [
     exitPlanModeTool
 ];
 
+let mcpTools: Tool[] = [];
+
+/**
+ * Replace the registry of MCP-provided tools. Called once at startup after
+ * connecting to all MCP servers, and again after `/mcp reconnect`.
+ */
+export function registerMcpTools(tools: Tool[]): void {
+    mcpTools = [...tools];
+}
+
+/** Drop the MCP-provided tools — used before re-registering after reconnect. */
+export function clearMcpTools(): void {
+    mcpTools = [];
+}
+
 // 获取所有启用的工具
 // 过滤掉所有 disabled 状态的工具
 export function getAllTools(): Tool[] {
-    return BUILT_IN_TOOLS.filter(t => t.isEnabled());
+    return [...BUILT_IN_TOOLS, ...mcpTools].filter((tool) => tool.isEnabled());
 }
 
 export function findToolByName(name: string): Tool | undefined {
-    return BUILT_IN_TOOLS.find(t => t.name === name);
+    return [...BUILT_IN_TOOLS, ...mcpTools].find((tool) => tool.name === name);
 }
 
 // 将内置工具列表转换为 Anthropic API 接受的 Tool 格式
@@ -79,6 +103,10 @@ export function findToolByName(name: string): Tool | undefined {
  * Only the plan mode transition tools are toggled:
  * - In plan mode: hide EnterPlanMode, show ExitPlanMode
  * - Outside plan mode: show EnterPlanMode, hide ExitPlanMode
+ * 
+ * MCP tools are always included; their visibility-in-plan is handled by
+ * `checkPermission()` reading `tool.isReadOnly()` (which maps to MCP's
+ * `annotations.readOnlyHint`).
  */
 export function getToolsApiParams(mode?: PermissionMode): Anthropic.Tool[] {
     const tools = getAllTools();

@@ -2,7 +2,7 @@ import * as os from "node:os";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 
-import { AGENT_HOME, AGENT_NAME } from "../utils/loadEnv.js";
+import { AGENT_HOME, AGENT_NAME } from "../utils/paths.js";
 import { loadAgentMdContext } from "./claudeMd.js";
 
 import {

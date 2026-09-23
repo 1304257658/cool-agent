@@ -14,7 +14,7 @@ loadEnv();
  */
 
 import { streamMessage } from "../services/api/streaming.js";
-import { DEFAULT_MODEL } from "../services/api/client.js";
+import { DEFAULT_MODEL } from "../services/api/anthropicClient.js";
 import type { StreamEvent } from "../types/message.js";
 
 async function main(): Promise<void> {

@@ -1,7 +1,7 @@
 /**
  * Plan file management — create, read, and locate plan files on disk.
  *
- * Plans live in ~/.easy-agent/plans/ and use a random slug per session.
+ * Plans live in ~/.agent/plans/ and use a random slug per session.
  * The model writes its plan to this file during plan mode; the user
  * can edit the file before approving exit.
  */
@@ -9,10 +9,8 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import * as crypto from "node:crypto";
-import { AGENT_HOME } from "../utils/loadEnv.js";
+import { getPlansRoot } from "../utils/paths.js";
 
-
-const PLANS_DIR = path.join(AGENT_HOME, "plans");
 
 let cachedSlug: string | null = null;
 
@@ -32,15 +30,15 @@ export function resetPlanSlug(): void {
 }
 
 export function getPlansDirectory(): string {
-  return PLANS_DIR;
+  return getPlansRoot();
 }
 
 export function getPlanFilePath(): string {
-  return path.join(PLANS_DIR, `${getPlanSlug()}.md`);
+  return path.join(getPlansRoot(), `${getPlanSlug()}.md`);
 }
 
 export async function ensurePlansDirectory(): Promise<void> {
-  await fs.mkdir(PLANS_DIR, { recursive: true });
+  await fs.mkdir(getPlansRoot(), { recursive: true });
 }
 
 export async function writePlan(content: string): Promise<string> {

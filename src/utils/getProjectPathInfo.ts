@@ -2,7 +2,7 @@ import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import * as crypto from "node:crypto";
 
-import { AGENT_PROJECTS_DIR } from "./loadEnv.js";
+import { getProjectsRoot } from "./paths.js";
 
 
 export interface ProjectPathInfo {
@@ -44,6 +44,6 @@ export async function getProjectPathInfo(cwd: string): Promise<ProjectPathInfo> 
     const slugBase = sanitizeSlug(path.basename(gitRoot));
     const suffix = crypto.createHash("sha256").update(gitRoot).digest("hex").slice(0, 16);
     const projectKey = `${slugBase}-${suffix}`;
-    const projectDir = path.join(AGENT_PROJECTS_DIR, projectKey.trim());
+    const projectDir = path.join(getProjectsRoot(), projectKey.trim());
     return { gitRoot, projectKey, projectDir };
 }

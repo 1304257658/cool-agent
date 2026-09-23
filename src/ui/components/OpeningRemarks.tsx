@@ -1,7 +1,7 @@
 import React from "react";
 import { Box, Text } from "ink";
 
-import { AGENT_NAME } from "../../utils/loadEnv.js";
+import { AGENT_NAME } from "../../utils/paths.js";
 
 
 

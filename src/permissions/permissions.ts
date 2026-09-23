@@ -1,12 +1,10 @@
-import * as fs from "node:fs/promises";
-import * as os from "node:os";
 import * as path from "node:path";
-
-import { AGENT_HOME, AGENT_HOME_NAME } from "../utils/loadEnv.js";
 
 import type { Tool } from "../tools/Tool.js";
 import { isReadOnlyCommand } from "../tools/bashTool.js";
 import { getPlanFilePath } from "../context/plans.js";
+import { getSettingsPaths } from "../utils/paths.js";
+import { readJsonSettingsFile } from "../utils/settings.js";
 
 
 export type PermissionBehavior = "allow" | "ask" | "deny";
@@ -84,32 +82,30 @@ function normalizeMode(value: unknown): PermissionMode | undefined {
     return value === "default" || value === "plan" || value === "auto" ? value : undefined;
 }
 
-async function readSettingsFile(filePath: string): Promise<Partial<PermissionSettings>> {
-    try {
-        const raw = await fs.readFile(filePath, "utf-8");
-        const parsed = JSON.parse(raw) as RawSettings;
-        return {
-            allow: normalizeRuleList(parsed.allow),
-            deny: normalizeRuleList(parsed.deny),
-            ...(normalizeMode(parsed.mode) ? {mode: normalizeMode(parsed.mode)} : {}),
-        };
-    } catch (error: unknown) {
-        const err = error as NodeJS.ErrnoException;
-        if (err?.code === "ENOENT") return {};
-        if (error instanceof SyntaxError) {
-            throw new Error(`Invalid JSON in permissions settings: ${filePath}`);
-        }
-        throw error;
+async function readPermissionsFromSettings(filePath: string): Promise<Partial<PermissionSettings>> {
+    // We THROW on parse errors here (matching the old behavior) so that a
+    // syntactically broken settings.json doesn't silently grant fewer
+    // permissions than the user thinks they configured. The MCP loader
+    // chooses the opposite policy (warn + skip) because partial MCP
+    // server configs are still useful — partial permission rules aren't.
+    const result = await readJsonSettingsFile<RawSettings>(filePath);
+    if (result.parseError) {
+        throw new Error(`Invalid JSON in permissions settings: ${filePath}`);
     }
+    if (!result.raw) return {};
+    return {
+        allow: normalizeRuleList(result.raw.allow),
+        deny: normalizeRuleList(result.raw.deny),
+        ...(normalizeMode(result.raw.mode) ? { mode: normalizeMode(result.raw.mode) } : {}),
+    };
 }
 
 export async function loadPermissionSettings(cwd: string): Promise<PermissionSettings> {
-    const userSettingsPath = path.join(AGENT_HOME, "settings.json");
-    const projectSettingsPath = path.join(cwd, AGENT_HOME_NAME, "settings.json");
+    const { user: userSettingsPath, project: projectSettingsPath } = getSettingsPaths(cwd);
 
     const [userSettings, projectSettings] = await Promise.all([
-        readSettingsFile(userSettingsPath),
-        readSettingsFile(projectSettingsPath),
+        readPermissionsFromSettings(userSettingsPath),
+        readPermissionsFromSettings(projectSettingsPath),
     ]);
 
     return {
@@ -193,10 +189,28 @@ function buildPermissionRuleHint(toolName: string, input: Record<string, unknown
     return toolName;
 }
 
+function escapeRegExp(value: string): string {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function wildcardToRegExp(pattern: string): RegExp {
+    const source = pattern.split("*").map(escapeRegExp).join(".*");
+    return new RegExp(`^${source}$`, "i");
+}
+
 function matchesPermissionRule(rule: string, toolName: string, input: Record<string, unknown>): boolean {
     const normalizedRule = rule.trim();
     if (!normalizedRule) return false;
     if (normalizedRule === toolName) return true;
+
+    // Wildcard match for MCP tool names: `mcp__github__*` matches every tool
+    // exposed by the github MCP server. Source code uses fully qualified
+    // `mcp__server__tool` names for permission rule matching to avoid
+    // collisions with builtin tool names — we follow the same convention
+    // and additionally support a trailing `*` for whole-server allow/deny.
+    if (normalizedRule.startsWith("mcp__") && normalizedRule.includes("*")) {
+        return wildcardToRegExp(normalizedRule).test(toolName);
+    }
 
     const match = normalizedRule.match(/^([A-Za-z]+)\((.*)\)$/);
     if (!match) return false;
@@ -206,7 +220,7 @@ function matchesPermissionRule(rule: string, toolName: string, input: Record<str
 
     if (toolName === "Bash") {
         const command = extractBashCommand(input);
-        return command.startsWith(pattern);
+        return wildcardToRegExp(pattern.trim()).test(command);
     }
 
     return false;
@@ -233,7 +247,7 @@ export async function checkPermission(params: PermissionCheckParams): Promise<Pe
     }
 
     // TodoWrite and the Task V2 tools only mutate planning state — either
-    // the in-memory todo list or the ~/.easy-agent/tasks directory — with
+    // the in-memory todo list or the ~/.agent/tasks directory — with
     // no filesystem or shell side effects on the user's workspace. They
     // never need user approval in any mode. This mirrors source code's
     // `shouldDefer: true` + `checkPermissions: () => allow` combo and

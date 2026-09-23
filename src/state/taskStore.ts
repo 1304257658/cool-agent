@@ -3,11 +3,11 @@
  *
  * Replicates `claude-code-source-code/src/utils/tasks.ts`, dropping the
  * multi-agent pieces (teammate mailbox, claim-with-busy-check, team name
- * resolution) since Easy Agent is single-agent in stage 15.
+ * resolution) since Agent is single-agent in stage 15.
  *
  * Layout (per task list):
  *
- *   ~/.easy-agent/tasks/<taskListId>/
+ *   ~/.agent/tasks/<taskListId>/
  *     1.json
  *     2.json
  *     .highwatermark   <-- max id ever assigned, survives deletes/reset
@@ -29,10 +29,8 @@ import * as path from "node:path";
 import lockfile from "proper-lockfile";
 import type { Task, TaskStatus } from "../types/task.js";
 import { TASK_STATUSES } from "../types/task.js";
-import { AGENT_HOME } from "../utils/loadEnv.js";
+import { getTasksRoot } from "../utils/paths.js";
 
-
-const TASKS_ROOT = path.join(AGENT_HOME, "tasks");
 
 const HIGH_WATER_MARK_FILE = ".highwatermark";
 const LOCK_FILE = ".lock";
@@ -72,7 +70,7 @@ export function getTaskListId(sessionId: string): string {
 }
 
 export function getTasksDir(taskListId: string): string {
-  return path.join(TASKS_ROOT, sanitizePathComponent(taskListId));
+  return path.join(getTasksRoot(), sanitizePathComponent(taskListId));
 }
 
 export function getTaskPath(taskListId: string, taskId: string): string {
