@@ -1,7 +1,7 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 
-import { getMemoryEntryFile } from "../../utils/paths.js";
+import { MEMORY_ENTRYPOINT } from "../../utils/paths.js";
 import { getProjectPathInfo, sanitizeSlug } from "../../utils/getProjectPathInfo.js";
 import type { MemoryType, MemoryFrontamatter, MemoryDocument, MemoryEntry } from "./memoryTypes.js";
 import { isMemoryType } from "./memoryTypes.js";
@@ -40,7 +40,7 @@ async function getProjectMemoryDir(cwd: string): Promise<string> {
 export async function ensureMemoryDirExists(cwd: string): Promise<string> {
     const memoryDir = await getProjectMemoryDir(cwd);
     await fs.mkdir(memoryDir, { recursive: true });
-    const entrypoint = path.join(memoryDir, getMemoryEntryFile());
+    const entrypoint = path.join(memoryDir, MEMORY_ENTRYPOINT);
 
     try {
         await fs.access(entrypoint);
@@ -94,7 +94,7 @@ async function collectMemoryMarkdownFiles(memoryDir: string, currentDir = memory
             if (entry.isDirectory()) {
                 return collectMemoryMarkdownFiles(memoryDir, fullPath);
             }
-            if (entry.isFile() && entry.name.endsWith(".md") && entry.name !== getMemoryEntryFile()) {
+            if (entry.isFile() && entry.name.endsWith(".md") && entry.name !== MEMORY_ENTRYPOINT) {
                 return [path.relative(memoryDir, fullPath)];
             }
             return [];
@@ -216,7 +216,7 @@ function truncateEntrypoint(raw: string): { content: string; warning?: string } 
 }
 
 async function rewriteEntrypoint(memoryDir: string, entries: MemoryEntry[]): Promise<void> {
-    const entrypointPath = path.join(memoryDir, getMemoryEntryFile());
+    const entrypointPath = path.join(memoryDir, MEMORY_ENTRYPOINT);
     const unique = new Map<string, string>();
     for (const entry of entries) {
         unique.set(entry.fileName, buildPointerLine(entry));
@@ -260,7 +260,7 @@ export async function writeProjectMemory(input: WriteProjectMemoryOptions): Prom
 
 export async function readMemoryEntrypoint(cwd: string): Promise<string | null> {
     const memoryDir = await ensureMemoryDirExists(cwd);
-    const entrypoint = path.join(memoryDir, getMemoryEntryFile());
+    const entrypoint = path.join(memoryDir, MEMORY_ENTRYPOINT);
     const raw = await fs.readFile(entrypoint, "utf-8");
     const truncated = truncateEntrypoint(raw);
     return [truncated.content, truncated.warning].filter(Boolean).join("\n\n") || null;
@@ -277,16 +277,16 @@ export function buildMemoryPromptInstructions(): string[] {
         "Use memory only for information that will be useful in future conversations and cannot be derived directly from the current repo state.",
         "Supported memory types: user, feedback, project, reference.",
         "When saving a memory, write one markdown file with frontmatter: name, description, type.",
-        `After writing or updating a memory file, update ${getMemoryEntryFile()} with a one-line pointer in the form: - [Title](file.md) — one-line hook.`,
-        `${getMemoryEntryFile()} is an index, not a place to store full memory content.`,
-        `Keep ${getMemoryEntryFile()} under ${MAX_ENTRYPOINT_LINES} lines and ${MAX_ENTRYPOINT_BYTES} bytes.`,
+        `After writing or updating a memory file, update ${MEMORY_ENTRYPOINT} with a one-line pointer in the form: - [Title](file.md) — one-line hook.`,
+        `${MEMORY_ENTRYPOINT} is an index, not a place to store full memory content.`,
+        `Keep ${MEMORY_ENTRYPOINT} under ${MAX_ENTRYPOINT_LINES} lines and ${MAX_ENTRYPOINT_BYTES} bytes.`,
         "Before creating a new memory, inspect existing topic memory files and update the best match when possible.",
     ];
 }
 
 
 export function formatMemorySystemLocation(memoryDir: string): string[] {
-    const entrypointPath = path.join(memoryDir, getMemoryEntryFile());
+    const entrypointPath = path.join(memoryDir, MEMORY_ENTRYPOINT);
     return [
         `You have a persistent, file-based project memory system at \`${memoryDir}\`.`,
         `The memory index file is \`${entrypointPath}\`.`,

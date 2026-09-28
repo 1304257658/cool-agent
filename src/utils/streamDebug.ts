@@ -4,7 +4,7 @@
  * Opt-in via the `EASY_AGENT_DEBUG_STREAM=1` environment variable.
  * When enabled, every raw SSE event — plus request / assembled / error
  * markers — is appended as a single-line JSON record to
- * `~/.cool-agent/stream-debug.log`.
+ * `~/.agent/stream-debug.log`.
  *
  * This is invaluable when debugging Anthropic-compatible endpoints
  * (MiniMax, LiteLLM, OpenAI → Anthropic shims, etc.) whose streaming

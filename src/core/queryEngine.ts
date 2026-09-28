@@ -671,8 +671,8 @@ export class QueryEngine {
      */
     private async *handleMcpCommand(args: string[]): AsyncGenerator<QueryEngineEvent, { handled: boolean }> {
         const describeTransport = (config: import("../types/mcp.js").ScopedMcpServerConfig): string => {
-        if (config.type === "http") return `http: ${config.url}`;
-        if (config.type === "sse") return `sse: ${config.url}`;
+            if (config.type === "http") return `http: ${config.url}`;
+            if (config.type === "sse") return `sse: ${config.url}`;
             return `stdio: ${config.command} ${(config.args ?? []).join(" ")}`.trim();
         };
 

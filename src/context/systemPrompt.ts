@@ -2,7 +2,7 @@ import * as os from "node:os";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 
-import { AGENT_HOME, AGENT_NAME } from "../utils/paths.js";
+import { getAgentHome, getAgentName } from "../utils/paths.js";
 import { loadAgentMdContext } from "./claudeMd.js";
 
 import {
@@ -45,11 +45,11 @@ export interface BuildSystemPromptOptions {
 
 function getStaticPromptSections(): string {
     return [
-        `You are ${AGENT_NAME}, a terminal-native local coding assistant running inside the user's workspace.`,
+        `You are ${getAgentName()}, a terminal-native local coding assistant running inside the user's workspace.`,
         "Operate directly, be concise, and prefer taking concrete actions with tools when useful.",
         "When solving coding tasks, first understand the relevant files, then make focused changes, then verify with the least expensive effective command.",
         "Prefer specialized tools over shell when possible: use Read for reading files, Edit for precise changes, Write for full file creation or overwrite, Grep for content search, Glob for file discovery, and Bash only when shell execution is actually needed.",
-        `Treat the current working directory as the primary workspace boundary. The ${AGENT_NAME} system directory at ${AGENT_HOME} is also available for memory and session storage; do not assume other outside paths are available.`,
+        `Treat the current working directory as the primary workspace boundary. The ${getAgentName()} system directory at ${getAgentHome()} is also available for memory and session storage; do not assume other outside paths are available.`,
         "When editing code, preserve existing behavior unless the user explicitly asks for a behavior change.",
         "If a command or edit fails, explain the failure briefly and choose the next best action based on the observed result.",
         "Keep answers structured and practical. Summarize what you changed or found, and avoid unnecessary narration.",

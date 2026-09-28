@@ -297,7 +297,7 @@ async function doConnect(
   }
 
   const client = new Client(
-    { name: "cool-agent", version: "0.1.0" },
+    { name: `${getAgentLowerName()}`, version: "0.1.0" },
     {
       capabilities: {
         // We declare empty `roots` — Agent doesn't yet expose project

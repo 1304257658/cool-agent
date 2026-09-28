@@ -47,7 +47,7 @@ const ctx: ToolContext = { cwd: process.cwd() };
 /**
  * Reset every piece of MCP state and isolate the home dir, so each test
  * runs hermetically — independent of (a) the developer's real
- * ~/.cool-agent/settings.json and (b) any cached connection Promises
+ * ~/.agent/settings.json and (b) any cached connection Promises
  * from previous tests in this run.
  */
 async function resetMcpStateForTest(): Promise<string> {
