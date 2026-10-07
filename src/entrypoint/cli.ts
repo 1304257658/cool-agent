@@ -83,6 +83,8 @@ Commands (in REPL):
   /mode [default|plan|auto]   Inspect or switch permission mode
   /tasks [task|todo|reset]    Switch task system or reset the task graph
   /mcp [tools|reconnect <n>]  Inspect or reconnect MCP servers
+  /skills                     List loaded skills (user + project scope)
+  /<skill-name> [args]        Invoke a skill by name
   /history                    Show session history
   /compact                    Compact conversation context
   /exit, /quit, /bye          Exit the REPL
@@ -109,19 +111,26 @@ Commands (in REPL):
         : null;
     const shouldResume = resumeIndex !== -1;
 
-    if (dumpSystemPrompt) {
-        // 构建系统提示词
-        const cwd = process.cwd();
-        const systemParts = await buildSystemPrompt({ cwd });
-        const systemPrompt = renderSystemPrompt(systemParts);
-        console.log(systemPrompt);
-        process.exit(0);
-    }
+    // Skills must load BEFORE we render anything (live REPL or
+    // --dump-system-prompt), because `buildSystemPrompt` reads the
+    // skill registry to inject the <system-reminder> discovery block.
+    // If we bootstrap after the dump branch, the dump shows an empty
+    // skills section and users assume the feature is broken.
+    const { bootstrapSkills } = await import("../services/skills/bootstrap.js");
+    await bootstrapSkills(process.cwd()).catch((error) => {
+        console.error(`[agent] skills bootstrap failed: ${(error as Error).message}`);
+    });
     
     // DebugView 视图渲染系统提示词
     const cwd = process.cwd();
     const systemParts = await buildSystemPrompt({ cwd });
     const systemPrompt = renderSystemPrompt(systemParts);
+
+    // 构建系统提示词
+    if (dumpSystemPrompt) {
+        console.log(systemPrompt);
+        process.exit(0);
+    }
     await renderCli(model, systemPrompt, permissionMode, shouldResume, resumeSessionId ?? undefined);
 }
 

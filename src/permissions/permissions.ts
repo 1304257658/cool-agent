@@ -131,6 +131,10 @@ function extractBashCommand(input: Record<string, unknown>): string {
     return typeof input.command === "string" ? input.command.trim() : "";
 }
 
+function extractSkillName(input: Record<string, unknown>): string {
+  return typeof input.skill === "string" ? input.skill.trim() : "";
+}
+
 function summarizeInput(input: Record<string, unknown>): string {
     const entries = Object.entries(input)
         .filter(([, value]) => value !== undefined)
@@ -186,6 +190,10 @@ function buildPermissionRuleHint(toolName: string, input: Record<string, unknown
         const firstToken = command.split(/\s+/)[0];
         return firstToken ? `Bash(${firstToken} *)` : "Bash";
     }
+    if (toolName === "Skill") {
+        const skillName = extractSkillName(input);
+        return skillName ? `Skill(${skillName})` : "Skill";
+    }
     return toolName;
 }
 
@@ -198,7 +206,7 @@ function wildcardToRegExp(pattern: string): RegExp {
     return new RegExp(`^${source}$`, "i");
 }
 
-function matchesPermissionRule(rule: string, toolName: string, input: Record<string, unknown>): boolean {
+export function matchesPermissionRule(rule: string, toolName: string, input: Record<string, unknown>): boolean {
     const normalizedRule = rule.trim();
     if (!normalizedRule) return false;
     if (normalizedRule === toolName) return true;
@@ -221,6 +229,19 @@ function matchesPermissionRule(rule: string, toolName: string, input: Record<str
     if (toolName === "Bash") {
         const command = extractBashCommand(input);
         return wildcardToRegExp(pattern.trim()).test(command);
+    }
+
+    // Skill rules: `Skill(my-skill)` exact, `Skill(review:*)` prefix-glob.
+    // The argument is the skill `name` (NOT the dirname or any args). Mirrors
+    // source code's `ruleMatches()` for the SkillTool branch.
+    if (toolName === "Skill") {
+        const skillName = extractSkillName(input);
+        if (!skillName) return false;
+        const trimmedPattern = pattern.trim();
+        if (trimmedPattern.includes("*")) {
+            return wildcardToRegExp(trimmedPattern).test(skillName);
+        }
+        return trimmedPattern === skillName;
     }
 
     return false;

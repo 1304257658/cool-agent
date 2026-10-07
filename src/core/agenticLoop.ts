@@ -16,6 +16,10 @@ import {
     type ToolContext,
     type ToolResult,
 } from "../tools/Tool.js";
+import {
+  activateConditionalSkillsForPaths,
+  extractToolFilePaths,
+} from "../services/skills/conditional.js";
 import type { ContentBlock, ToolUseBlock, Usage } from "../types/message.js";
 import { createEmptyUsage } from "../utils/usage.js";
 import { calculateTokenWarningState, TokenWarningResult } from "../context/autoCompact.js";
@@ -249,6 +253,17 @@ async function runTools(
                 toolInput: toolInput,
                 result: result,
             })
+
+            // Promote any conditional skills whose `paths` patterns match the
+            // file the model just touched. The activation is sticky for the
+            // remainder of the session — the new skill will appear in the next
+            // system prompt rebuild (next user submit).
+            if (!result.isError) {
+                const filePaths = extractToolFilePaths(block.name, toolInput);
+                if (filePaths.length > 0) {
+                    activateConditionalSkillsForPaths(filePaths, context.cwd);
+                }
+            }
         } catch (error: unknown) {
             const errorMessage = error instanceof Error
               ? (error.stack ?? error.message)

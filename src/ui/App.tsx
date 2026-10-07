@@ -7,6 +7,8 @@ import type { PermissionMode } from "../permissions/permissions.js";
 import { useAgentSession } from './hooks/useAgentSession.js';
 import { usePromptInput } from './hooks/usePromptInput.js';
 import { getToolsApiParams } from "../tools/index.js";
+import { getAllUserInvocableSkills } from "../services/skills/registry.js";
+import type { CommandSuggestion } from "./types.js";
 
 // 组件导入
 import { OpeningRemarks } from './components/OpeningRemarks.js';
@@ -59,12 +61,33 @@ export function App({ model, systemPrompt, permissionMode, shouldResume, resumeS
   const effectiveSpinnerLabel = state.taskMode === "task"
     ? (inProgressTask?.activeForm ?? inProgressTask?.subject ?? state.spinnerLabel)
     : (inProgressTodo?.activeForm ?? state.spinnerLabel);
+
+  // Pull skill `/<name>` commands from the live registry on every render
+  // so newly activated conditional skills (e.g. test-reviewer after the
+  // model reads a *.test.ts file) appear in the suggestion list without
+  // the user having to restart. Computing inline is fine — the registry
+  // is an in-memory Map and we only render on existing state changes.
+  const skillCommands: CommandSuggestion[] = React.useMemo(
+    () =>
+      getAllUserInvocableSkills().map((skill) => ({
+        name: `/${skill.name}`,
+        description:
+          skill.description.length > 80
+            ? `${skill.description.slice(0, 77)}…`
+            : skill.description,
+      })),
+    // Re-derive whenever the message log grows — that's our cheap proxy
+    // for "something happened that may have activated a skill". The list
+    // is tiny so the cost is negligible.
+    [state.messages.length, state.toolCalls.length],
+  );
   const { inputValue, commandSuggestions, modeSuggestions, taskModeSuggestions } = usePromptInput({
     isLoading: state.isLoading,
     hasPermissionPrompt: Boolean(state.permissionPrompt) && !isPlanExitActive,
     isPlanExitPrompt: false,
     permissionMode: state.permissionMode,
     taskMode: state.taskMode,
+    extraCommands: skillCommands,
     onSubmit: actions.submit,
     onExit: exit,
     onInterrupt: actions.interrupt,

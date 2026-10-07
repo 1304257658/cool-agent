@@ -13,7 +13,8 @@
     "start": "node dist/entrypoint/cli.js",
     "test:streaming": "tsx src/scripts/test-streaming.ts",
     "test:tasks": "tsx src/scripts/test-tasks.ts",
-    "test:mcp": "tsx src/scripts/test-mcp.ts"
+    "test:mcp": "tsx src/scripts/test-mcp.ts",
+    "test:skills": "tsx src/scripts/test-skills.ts"
   },
   "devDependencies": {
     "@types/node": "^25.9.1",
@@ -26,8 +27,10 @@
     "@anthropic-ai/sdk": "^0.98.0",
     "@modelcontextprotocol/sdk": "^1.30.0",
     "dotenv": "^17.4.2",
+    "ignore": "^7.0.12",
     "ink": "^7.0.4",
     "proper-lockfile": "^4.1.2",
-    "react": "^19.2.6"
+    "react": "^19.2.6",
+    "yaml": "^2.9.1"
   }
 }

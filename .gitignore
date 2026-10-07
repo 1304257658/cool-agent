@@ -19,7 +19,9 @@ dist/
 # Visual Studio Code
 .vscode/
 
-
+.claude
+.agent
+.cool-agent
 
 
 

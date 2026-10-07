@@ -6,6 +6,8 @@
  * Covers: create, get, list, update, dependency cascade, delete cascade,
  * reset + high water mark persistence.
  */
+import { loadEnv } from "../utils/loadEnv.js";
+loadEnv();
 import {
   blockTask,
   createTask,

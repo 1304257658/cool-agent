@@ -49,6 +49,7 @@ import * as path from "node:path";
 export const SETTINGS_FILE = "settings.json";
 export const AGENT_MD_NAME = "AGENT.md";
 export const MEMORY_ENTRYPOINT = "MEMORY.md";
+export const SKILL_FILE = "SKILL.md";
 
 // ─── Global (~/.agent/...) ──────────────────────────────────────
 
@@ -105,6 +106,11 @@ export function getStreamDebugLogPath(): string {
   return getAgentPath("stream-debug.log");
 }
 
+/** ~/.agent/skills */
+export function getUserSkillsDir(): string {
+  return getAgentPath("skills");
+}
+
 // ─── Project (<cwd>/.agent/...) ─────────────────────────────────
 
 /** Returns `<cwd>/.agent`. */
@@ -115,6 +121,11 @@ export function getProjectAgentDir(cwd: string): string {
 /** Returns `<cwd>/.agent/settings.json`. */
 export function getProjectSettingsPath(cwd: string): string {
   return path.join(getProjectAgentDir(cwd), SETTINGS_FILE);
+}
+
+/** <cwd>/.agent/skills */
+export function getProjectSkillsDir(cwd: string): string {
+  return path.join(getProjectAgentDir(cwd), "skills");
 }
 
 // ─── Tuple helpers ───────────────────────────────────────────────────
